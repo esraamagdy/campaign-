@@ -52,13 +52,13 @@ test("complete demo campaign workflow, editing, and targeted regeneration", asyn
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Hero advertising image" }),
+    page.getByRole("img", { name: "Hero campaign visual" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Lifestyle advertising image" }),
+    page.getByRole("img", { name: "Lifestyle campaign visual" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Creative advertising image" }),
+    page.getByRole("img", { name: "Creative campaign visual" }),
   ).toBeVisible();
   await expect(
     page.getByText("Demo reference only — not an AI-generated advertisement."),
@@ -218,8 +218,11 @@ test("image API validates reference contents and generation metadata", async ({
   expect((await response.json()).error).toContain("decode");
 });
 
-async function openFixtureCampaign(page: import("@playwright/test").Page) {
-  await page.goto("/");
+async function openFixtureCampaign(
+  page: import("@playwright/test").Page,
+  navigate = true,
+) {
+  if (navigate) await page.goto("/");
   await page
     .locator("input[type=file]")
     .first()
@@ -295,4 +298,77 @@ test("browser decode failures are visible without triggering another image reque
     "fixture-corrupt",
   );
   expect(requests).toBe(3);
+});
+
+test("all campaign cards stay visible under legacy advertising cosmetic filters", async ({
+  page,
+}) => {
+  await page.goto("/");
+  // Simulate the browser extension stylesheet before campaign content is mounted.
+  await page.addStyleTag({
+    content:
+      '.ad-card, .ad-image, .ad-image-section, .editable-ad-field, [class^="ad-"], [class*=" ad-"] { display: none !important; }',
+  });
+  // Prove that the simulated rule is active; legacy markup remains in the DOM but is hidden.
+  await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.className = "ad-card";
+    probe.textContent = "Cosmetic filter probe";
+    probe.dataset.filterProbe = "true";
+    document.body.append(probe);
+  });
+  const probe = page.locator("[data-filter-probe]");
+  await expect(probe).toHaveCount(1);
+  await expect(probe).toBeHidden();
+  expect(
+    await probe.evaluate((element) => getComputedStyle(element).display),
+  ).toBe("none");
+  // Stay in this document so the simulated extension stylesheet remains active.
+  await openFixtureCampaign(page, false);
+  await expect(
+    page.getByRole("heading", {
+      name: "Three concepts. One unmistakable brand.",
+    }),
+  ).toBeVisible();
+  const cards = page.locator(".campaign-post-card");
+  await expect(cards).toHaveCount(3);
+  for (let i = 0; i < 3; i++) {
+    const card = cards.nth(i);
+    await expect(card).toBeVisible();
+    const computed = await card.evaluate((element) => ({
+      display: getComputedStyle(element).display,
+      visibility: getComputedStyle(element).visibility,
+      width: element.getBoundingClientRect().width,
+      height: element.getBoundingClientRect().height,
+    }));
+    expect(computed.display).not.toBe("none");
+    expect(computed.visibility).toBe("visible");
+    expect(computed.width).toBeGreaterThan(0);
+    expect(computed.height).toBeGreaterThan(0);
+    await expect(card.locator(".campaign-visual-preview")).toBeVisible();
+    await expect(
+      card.getByLabel(`Post ${i + 1} headline`, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      card.getByLabel(`Post ${i + 1} caption`, { exact: true }),
+    ).toBeVisible();
+    await expect
+      .poll(() =>
+        card
+          .locator("img")
+          .evaluate(
+            (image) =>
+              (image as HTMLImageElement).complete &&
+              (image as HTMLImageElement).naturalWidth > 0,
+          ),
+      )
+      .toBe(true);
+  }
+  await expect(
+    page.locator(
+      '.results [class^="ad-"], .results [class*=" ad-"], .results .editable-ad-field',
+    ),
+  ).toHaveCount(0);
+  await expect(probe).toHaveCount(1);
+  await expect(probe).toBeHidden();
 });

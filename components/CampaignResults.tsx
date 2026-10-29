@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Leaf, RotateCw, Sparkles } from "lucide-react";
-import { AdImage } from "./AdImage";
+import { CampaignVisual } from "./CampaignVisual";
 import type { Campaign, ImageState } from "@/lib/schemas";
 export function CampaignResults({
   campaign,
@@ -77,8 +77,8 @@ export function CampaignResults({
       </div>
       <div className="strategy-grid">
         {campaign.posts.map((post, i) => (
-          <section className="panel result-card ad-card" key={i}>
-            <AdImage
+          <section className="panel result-card campaign-post-card" key={i}>
+            <CampaignVisual
               state={imageStates[i] || {}}
               index={i}
               disabled={!!busy}
@@ -93,7 +93,7 @@ export function CampaignResults({
                 <span>
                   {key === "title" ? "CONCEPT NAME" : key.toUpperCase()}
                 </span>
-                <div className="editable-ad-field">
+                <div className="campaign-copy-field">
                   <textarea
                     aria-label={`Post ${i + 1} ${key}`}
                     rows={key === "title" ? 1 : 3}

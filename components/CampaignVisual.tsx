@@ -2,7 +2,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { Download, RotateCw, Loader2, ImagePlus } from "lucide-react";
 import type { ImageState } from "@/lib/schemas";
-export function AdImage({
+export function CampaignVisual({
   state,
   index,
   onGenerate,
@@ -17,15 +17,15 @@ export function AdImage({
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const displayFailed = !!state.image && failedSource === state.image.dataUrl;
   return (
-    <div className="ad-image-section">
-      <div className={`ad-image visual-${index}`}>
+    <div className="campaign-visual-section">
+      <div className={`campaign-visual-preview visual-${index}`}>
         {state.image && !displayFailed ? (
           <Image
             unoptimized
             src={state.image.dataUrl}
             width={1024}
             height={1024}
-            alt={`${type} advertising image`}
+            alt={`${type} campaign visual`}
             onLoad={() => setFailedSource(null)}
             onError={() => {
               setFailedSource(state.image!.dataUrl);

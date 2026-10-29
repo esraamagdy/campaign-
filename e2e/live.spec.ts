@@ -60,12 +60,12 @@ test("live-mode UI and routes with mock FAL: grounded brand, paired ads, partial
   ).toBe(3);
   for (const type of ["Hero", "Lifestyle", "Creative"]) {
     await expect(
-      page.getByRole("img", { name: `${type} advertising image` }),
+      page.getByRole("img", { name: `${type} campaign visual` }),
     ).toBeVisible();
     await expect
       .poll(() =>
         page
-          .getByRole("img", { name: `${type} advertising image` })
+          .getByRole("img", { name: `${type} campaign visual` })
           .evaluate(
             (image) =>
               (image as HTMLImageElement).complete &&
@@ -119,10 +119,10 @@ test("live-mode UI and routes with mock FAL: grounded brand, paired ads, partial
     "previous image is still available",
   );
   await expect(
-    page.getByRole("img", { name: "Hero advertising image" }),
+    page.getByRole("img", { name: "Hero campaign visual" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Lifestyle advertising image" }),
+    page.getByRole("img", { name: "Lifestyle campaign visual" }),
   ).toBeVisible();
   const downloaded = page.waitForEvent("download");
   await page.getByRole("link", { name: "Download Hero image" }).click();
