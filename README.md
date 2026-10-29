@@ -1,10 +1,10 @@
 # Forma — AI Campaign Studio
 
-A functional e-commerce campaign generator built with Next.js App Router, TypeScript, Tailwind CSS v4, and Lucide icons. No accounts, payments, database, or external storage are required.
+An e-commerce campaign generator built on the existing Next.js/TypeScript app. The four-step workflow and sage-and-cream UI are preserved. **FAL is the single AI API provider**, authenticated by one server-only `FAL_KEY`. No accounts for end users, payments, or database are required.
 
-## Run locally
+## Run
 
-Requirements: Node.js 22.3+ or 24+ (validated on Node 24) and npm.
+Use Node.js 22.3+ or 24+ (validated on Node 24) and npm:
 
 ```sh
 npm ci
@@ -12,57 +12,94 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open the development server on port 3000. For production: `npm run build` followed by `npm start`.
+The development app runs on port 3000. A normal production workflow is `npm run build` followed by `npm start`. The FAL migration was tested directly against source without running a production rebuild. In cloud tasks, use the existing `/workspace/campaign-` checkout; tasks are already isolated, so do not create another Git worktree unless requested. Processes must restart in new sessions.
 
-The API works without credentials: **demo mode is explicitly labeled** in the brand review and campaign results. Demo analysis is illustrative and does not infer facts from the uploaded text; edit it to match your brand. Demo generation interpolates the approved brand and product into sample campaigns, with a fixed alternate version for regeneration.
+## One provider and one key
 
-To enable live AI, set these **server-only** variables in `.env.local` or your hosting environment and restart the server:
+Create a FAL API key and configure it securely in `.env.local` or the server environment:
 
 ```dotenv
-OPENAI_API_KEY=your-key-here
-OPENAI_MODEL=gpt-4o-mini
+AI_MODE=live
+FAL_KEY=your-server-key
+FAL_TEXT_MODEL=google/gemini-2.5-flash
+FAL_IMAGE_MODEL=fal-ai/flux-pro/kontext
+AI_TEXT_REQUESTS_PER_HOUR=40
+AI_IMAGES_PER_HOUR=12
 ```
 
-Never prefix credentials with `NEXT_PUBLIC_` or commit `.env.local`. Server network access to `api.openai.com` is required. No live-provider call was validated without credentials. A configured but failing provider returns an error; it never silently switches to demo mode.
+No separate OpenRouter, Google, image-model, or OpenAI key is required. The old `OPENAI_*` and `AI_PROVIDER` settings are no longer used. Never prefix the key with `NEXT_PUBLIC_`, commit it, or send it in chat. Restart the server after editing settings.
 
-## Workflow
+All inference requests go to `https://fal.run` using `Authorization: Key <FAL_KEY>`. No browser-to-provider calls or public client proxy are used. Allow `fal.run` in restricted network settings. If an image result is returned as a storage URL instead of inline data, also allow `fal.media` and `*.fal.media`. Downloads never receive the key and never follow redirects. `fal.ai` is only needed to read model/account documentation, not to make the app's inference calls.
 
-1. **Brand Brain:** upload a text-based PDF, DOCX, or TXT (maximum 5 MB). Review and edit positioning, audience, tone, values, key messages, and visual identity, then approve.
-2. **Product:** upload an optional JPG, PNG, or WebP (maximum 5 MB), add a name and description, and optionally specify features, benefits, and price. The image is previewed locally.
-3. **Generate:** review the brand and product summary and generate the campaign.
-4. **Results:** edit the campaign name, big idea, objective, audience, message, three social concepts with captions/CTAs, and three visual concepts with image prompts. Copy individual cards or the complete campaign as JSON. Regenerate one card while preserving all other edits, or regenerate the full campaign.
+### Selected models and estimated cost
 
-Uploads and edits live in memory and are lost on refresh. Product images stay in the browser and are **not analyzed by AI** in V1. Visual output consists of concepts and prompts, not generated images. Scanned PDFs need OCR before upload. Document extraction requires at least 20 readable characters; only the first 30,000 text characters are sent for AI analysis. This keeps the MVP lightweight and limits context size.
+| Task                                                   | Model/endpoint                                     | Reason                                                                           |
+| ------------------------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Brand analysis, strategy, headlines, captions and CTAs | `openrouter/router` with `google/gemini-2.5-flash` | Affordable instruction-following model; one shared text adapter for every schema |
+| Hero, Lifestyle and Creative product-reference images  | `fal-ai/flux-pro/kontext`                          | Reference-image editing and product consistency; one square PNG per request      |
 
-## Architecture and decisions
+Kontext Max (`fal-ai/flux-pro/kontext/max`) is an optional more expensive supported endpoint. Other image endpoints are rejected because they may use incompatible input contracts. Text model IDs can be changed with `FAL_TEXT_MODEL`, but confirm availability and JSON performance first.
 
-- `app/page.tsx` coordinates the four-step client workflow and session state. Accessible labeled inputs, keyboard-operable upload controls, error states, loading states, and responsive layouts support desktop and mobile use.
-- `components/StepProgress.tsx` handles gated progress navigation; `components/CampaignResults.tsx` renders editable strategy, post, and visual cards.
-- `app/api/brand/route.ts` validates and extracts document text using `pdf-parse` and `mammoth`, then returns a structured brand analysis. DOCX is extracted as raw text rather than rendering embedded HTML.
-- `app/api/campaign/route.ts` validates approved brand/product data and optional regeneration targets, generates a structured campaign, and merges only the requested element.
-- `lib/schemas.ts` is the shared Zod contract for request validation, structured AI responses, and TypeScript types. Output requires exactly three posts and three visual directions.
-- `lib/ai.ts` is marked `server-only`. It calls OpenAI with JSON output, validates responses, uses a 60-second timeout, and keeps keys out of browser bundles. Uploaded text is treated as reference data rather than instructions.
-- `lib/mock.ts` provides clearly identified sample output. `lib/campaign.ts` isolates the nonmutating regeneration merge. `lib/http.ts` bounds actual streamed request bodies, including requests without Content-Length.
-- `app/globals.css` uses Tailwind's build pipeline and shared CSS tokens for the sage-and-cream studio interface. No external fonts or asset services are needed.
+**Budgeting estimates, not verified current FAL quotes:** assume Gemini 2.5 Flash at approximately **$0.30 per million input tokens and $2.50 per million output tokens**, and Kontext Pro at approximately **$0.04 per image**. A campaign using 10,000 input and 4,000 output tokens across brand/strategy calls would cost about **$0.013 for text + $0.12 for three images = $0.133**. Budget roughly **$0.13–$0.15** under those assumptions; longer documents, regeneration, routing charges, and pricing changes can increase this. `reasoning=false` suppresses reasoning in the returned answer; it does not guarantee zero billed reasoning computation. These are not spending guarantees. Verify current FAL rates and credits before any live testing.
 
-Client validation gives immediate feedback. Server validation checks document extension, MIME type, size, PDF/ZIP signatures, parser results, required fields, field lengths, and valid regeneration targets. Image validation checks type, size, and browser decoding; images never reach the server.
+References: [FAL OpenRouter API](https://fal.ai/models/openrouter/router/api), [Kontext Pro API](https://fal.ai/models/fal-ai/flux-pro/kontext/api), and [official FAL SDK endpoint types](https://github.com/fal-ai/fal-js/blob/main/libs/client/src/types/endpoints.ts). Direct access to the FAL documentation/pricing pages was blocked in the implementation environment; endpoint contracts were checked against the official SDK source instead. No paid requests were made, and live model availability and billing remain unverified.
 
-This is an unauthenticated MVP intended for local development or controlled testing. Before exposing a paid AI endpoint publicly, add deployment-level rate limiting, request budgets, robust abuse protection, and parser isolation. No application persistence or server-side document storage is included; live mode sends extracted document text and approved product/brand data to OpenAI, whose own data policies apply. Copy is the export mechanism.
+### Structured JSON contract
 
-## Validation
+The official `openrouter/router` input exposes `model`, `prompt`, `system_prompt`, `max_tokens`, temperature and reasoning/search options. It does **not** expose a native `response_format` or JSON-schema enforcement parameter. Forma puts the exact Zod-derived JSON schema in `system_prompt`, disables web search and reasoning output, uses temperature 0.2, and limits output to 6,000 tokens. It validates the returned `output` string with JSON parsing and the existing Zod schema. A single fenced JSON block is accepted; prose, partial responses, schema violations and empty/repetitive campaigns fail safely. No automatic paid repair/retry is performed. Provider-enforced schema guarantees are not claimed.
+
+Brand extraction keeps the evidence layer: each field must have a supporting quote found in the actual uploaded text. Unsupported fields and invented hex codes are replaced with **“Not specified in document.”** Quote presence does not establish semantic entailment, so users still review and approve every field.
+
+## Demo and live modes
+
+- `AI_MODE=auto` (default): free demo without `FAL_KEY`, live with it.
+- `AI_MODE=demo`: always free sample output, even with a key present; no provider request occurs. Brand output is explicitly illustrative. Images show the reference photo with a “not AI-generated” label.
+- `AI_MODE=live`: requires `FAL_KEY`. Missing credentials, exhausted credits, model refusal, invalid JSON and provider failures return useful errors. No silent fallback to demo output occurs.
+
+`/api/status` returns only mode, model names and remaining request counts. The key stays on the server. Existing UI/layout/workflow are unchanged by the FAL migration; only provider-disclosure wording and the provider-documentation link are updated.
+
+## Workflow and data handling
+
+1. **Brand Brain:** upload a text-based PDF, DOCX or TXT up to 5 MB. Extract actual document text, analyze up to 30,000 characters, and review/edit name, personality, positioning, audience, tone, values, messages, colors and visual guidelines, including supporting evidence. Truncation is shown. Scanned PDFs need OCR; colors present only in graphics are not inferred.
+2. **Product:** add name, description, optional features, benefits and price, and a PNG/JPG/WebP product reference up to 5 MB/20 megapixels. Text strategy can run without a photo, but image generation requires one.
+3. **Generate:** create three distinct Hero/Lifestyle/Creative concepts with individual headlines, captions and CTAs, then request three reference-based images sequentially. Kontext receives the original image as `image_url` (data URI), `num_images=1`, `aspect_ratio=1:1`, `output_format=png`, `enhance_prompt=false` and `sync_mode=true`. No incompatible GPT Image quality/fidelity parameters are sent.
+4. **Results:** edit/regenerate individual text fields, ad concepts or visual directions, and regenerate/download each image independently. Existing images survive failed regeneration. Changed direction is marked for review. Full regeneration makes three new image requests.
+
+Image prompts request preservation of product shape, materials, color, packaging and branding. Exact lettering, logos and geometry can still vary; review all images before advertising. Headline/caption/CTA content is rendered outside the image rather than baked into generated text overlays.
+
+Session state is in browser memory and resets on refresh; download anything to keep. The app does not persist uploads or results. In live mode, text, approved brand/product data and reference images are sent to FAL and the downstream model providers it routes to; their data policies apply. Inline PNG results are preferred. FAL storage downloads are bounded to 18 MB, restricted to HTTPS FAL media hosts, validated as PNG, and returned to the browser as data URLs. `sync_mode=true` requests inline media; it is not a general claim that FAL retains no request data.
+
+## Usage limits
+
+The default ceilings are **40 paid text attempts and 12 paid image attempts per Node process per hour**. Failed attempts count conservatively. Set either limit to `0` to disable that kind of paid generation. Four concurrent text and two image calls are allowed. Reservations happen before dispatch; invalid inputs and demo mode do not make inference calls. Partial text regeneration requests only the selected field/object.
+
+Text/image calls time out after 60/180 seconds; image routes permit up to 240 seconds, subject to hosting limits. No automatic retries or queues that could create duplicate charges are used. A timeout does not establish that the provider stopped computing or billing.
+
+Limits are in memory, reset on restart, and independent across workers/replicas. They are not monetary caps. Use FAL credit/budget controls too. Before public multi-instance use, add shared limits, authentication or abuse protection, and parser isolation. No public deployment is included.
+
+## Architecture
+
+- Existing `app/page.tsx` and components retain brand approval, product preview, paired ad cards, editing, downloads and image state.
+- `app/api/brand`, `campaign`, `images`, `status`: existing server routes and contracts.
+- `lib/ai.ts`: server-only orchestration and usage reservations. `lib/providers/fal.ts`: text/image provider interfaces, direct FAL requests, safe errors and bounded image downloads. `lib/providers/config.ts`: single-key model/mode configuration. No direct OpenAI integration remains.
+- `lib/schemas.ts`, `brand.ts`, `campaign.ts`, `prompts.ts`: preserved schemas, evidence checks, safe targeted merges and product-preservation instructions.
+- `lib/usage.ts`, `uploads.ts`, `http.ts`, `api-error.ts`: request/concurrency budgets, server image decoding, streamed body caps and useful safe errors. Inputs are treated as untrusted reference data.
+
+## Tests without paid calls or a rebuild
 
 ```sh
-npm test              # schema, output completeness, targeted merge, body limit
-npm run lint          # Next.js + TypeScript ESLint
-npm run typecheck     # TypeScript
-npm run build         # production compilation and route generation
-npm run test:e2e      # run after build; starts the production app on port 3000
+npm test
+npm run lint
+npm run typecheck
 ```
 
-Validated: four unit tests, four browser/API tests, ESLint, TypeScript, and the production build. Real TXT, PDF, and DOCX inputs and clipboard export are covered.
+`npm test` covers schemas, document grounding, merge isolation, streamed body limits, actual FAL request shapes/authentication, original reference bytes, invalid/fenced/partial JSON, safe errors, trusted storage downloads, budgets, and current brand/campaign/image/status route handlers. Provider fetches are mocked. Route tests execute the changed TypeScript source directly with a dummy key and a test-only interceptor that refuses external network access. Demo tests assert no provider call occurs. These tests require no compiled `.next` build and make no paid requests.
 
-Browser tests use the system Chromium at `/usr/bin/chromium`. On another machine set `CHROMIUM_PATH` to your Chromium executable. Tests exercise the demo flow; run with `OPENAI_API_KEY` unset. The browser suite covers document analysis, brand edits, product details/image preview, campaign generation, preserving edits during regeneration, mobile overflow, invalid uploads, and API error responses. A production build must exist before browser tests start.
+Browser suites remain available for a later rebuilt app:
 
-## Cloud environment
+```sh
+npm run test:e2e
+npm run test:e2e:live
+```
 
-Use the existing `/workspace/campaign-` checkout; each task already has an isolated environment, so no extra Git worktree is needed. Install with `npm ci`, then use `npm run dev` for development or `npm start` after a build. Processes must be restarted in new sessions. npm registry access is needed to reinstall dependencies; `api.openai.com` is only needed for live AI.
+They need a current production build, Chromium at `/usr/bin/chromium` or `CHROMIUM_PATH`, and available ports 3000/3001. The mocked live suite uses `tests/fal-preload.mjs`, never imported by the application. Browser suites were not rerun against a stale build during this migration. No claim is made about paid FAL connectivity, output originality, product fidelity, account access or current pricing until real testing is authorized and configured.

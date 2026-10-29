@@ -1,6 +1,8 @@
 import { z } from "zod";
 export const brandSchema = z.object({
   name: z.string().trim().min(1).max(200),
+  personality: z.string().trim().min(1).max(3000),
+  colors: z.string().trim().min(1).max(3000),
   positioning: z.string().trim().min(1).max(3000),
   audience: z.string().trim().min(1).max(3000),
   tone: z.string().trim().min(1).max(3000),
@@ -16,24 +18,29 @@ export const productSchema = z.object({
   price: z.string().max(100),
 });
 export const campaignSchema = z.object({
-  name: z.string(),
-  idea: z.string(),
-  objective: z.string(),
-  audience: z.string(),
-  message: z.string(),
+  name: z.string().max(4000),
+  idea: z.string().max(4000),
+  objective: z.string().max(4000),
+  audience: z.string().max(4000),
+  message: z.string().max(4000),
   posts: z
     .array(
       z.object({
-        title: z.string(),
-        concept: z.string(),
-        caption: z.string(),
-        cta: z.string(),
+        title: z.string().max(4000),
+        concept: z.string().max(4000),
+        headline: z.string().min(1).max(500),
+        caption: z.string().max(4000),
+        cta: z.string().max(4000),
       }),
     )
     .length(3),
   visuals: z
     .array(
-      z.object({ title: z.string(), concept: z.string(), prompt: z.string() }),
+      z.object({
+        title: z.string().max(4000),
+        concept: z.string().max(4000),
+        prompt: z.string().max(4000),
+      }),
     )
     .length(3),
 });
@@ -54,6 +61,11 @@ export const requestSchema = z.object({
       "visual0",
       "visual1",
       "visual2",
+      ...([0, 1, 2] as const).flatMap((i) =>
+        (["title", "concept", "headline", "caption", "cta"] as const).map(
+          (key) => `post${i}.${key}` as const,
+        ),
+      ),
     ])
     .optional(),
 });
@@ -62,3 +74,18 @@ export type Product = z.infer<typeof productSchema>;
 export type Campaign = z.infer<typeof campaignSchema>;
 export const MAX_DOCUMENT = 5 * 1024 * 1024;
 export const MAX_IMAGE = 5 * 1024 * 1024;
+
+export const imageRequestSchema = z.object({
+  brand: brandSchema,
+  product: productSchema,
+  visual: campaignSchema.shape.visuals.element,
+  ad: campaignSchema.shape.posts.element,
+  index: z.number().int().min(0).max(2),
+});
+export type GeneratedImage = { dataUrl: string; demo: boolean; model: string };
+export type ImageState = {
+  image?: GeneratedImage;
+  loading?: boolean;
+  error?: string;
+  stale?: boolean;
+};

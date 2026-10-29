@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { StepProgress } from "@/components/StepProgress";
@@ -28,10 +28,12 @@ import {
   MessageCircle,
   Heart,
 } from "lucide-react";
-import type { Brand, Product, Campaign } from "@/lib/schemas";
+import type { Brand, Product, Campaign, ImageState } from "@/lib/schemas";
 import { MAX_DOCUMENT, MAX_IMAGE } from "@/lib/schemas";
 const fields: { key: keyof Brand; label: string; icon: typeof Target }[] = [
   { key: "name", label: "Brand name", icon: Leaf },
+  { key: "personality", label: "Brand personality", icon: Heart },
+  { key: "colors", label: "Brand colors", icon: Palette },
   { key: "positioning", label: "Brand positioning", icon: Target },
   { key: "audience", label: "Target audience", icon: Users },
   { key: "tone", label: "Tone of voice", icon: MessageCircle },
@@ -52,11 +54,27 @@ export default function Home() {
     [campaign, setCampaign] = useState<Campaign | null>(null),
     [file, setFile] = useState<File | null>(null),
     [image, setImage] = useState(""),
+    [reference, setReference] = useState<File | null>(null),
+    [imageStates, setImageStates] = useState<ImageState[]>([{}, {}, {}]),
+    [notice, setNotice] = useState(""),
+    [evidence, setEvidence] = useState<Partial<Record<keyof Brand, string>>>(
+      {},
+    ),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [demo, setDemo] = useState(false),
     [copied, setCopied] = useState(""),
     [drag, setDrag] = useState(false);
+  const working = !!busy || imageStates.some((state) => state.loading);
+  useEffect(() => {
+    fetch("/api/status")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        setDemo(data.demo);
+      })
+      .catch((error) => setError(error.message));
+  }, []);
   const input = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   function selectFile(f?: File) {
@@ -84,7 +102,15 @@ export default function Home() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setBrand(json.brand);
+      setEvidence(json.evidence || {});
+      setCampaign(null);
+      setImageStates([{}, {}, {}]);
       setDemo(json.demo);
+      setNotice(
+        json.truncated
+          ? "Only the first 30,000 document characters were analyzed. Review missing details before approval."
+          : "",
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -111,11 +137,96 @@ export default function Home() {
       setCampaign(json.campaign);
       setDemo(json.demo);
       setStep(3);
+      if (!element) {
+        setImageStates([{}, {}, {}]);
+        for (let index = 0; index < 3; index++)
+          await renderImage(index, json.campaign);
+      } else if (element.startsWith("visual")) {
+        const index = Number(element.at(-1));
+        setImageStates((previous) =>
+          previous.map((state, i) =>
+            i === index ? { ...state, stale: true } : state,
+          ),
+        );
+      } else if (element.startsWith("post")) {
+        const index = Number(element[4]);
+        setImageStates((previous) =>
+          previous.map((state, i) =>
+            i === index ? { ...state, stale: true } : state,
+          ),
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy("");
     }
+  }
+  async function renderImage(index: number, target: Campaign) {
+    if (!brand) return;
+    setImageStates((previous) =>
+      previous.map((state, i) =>
+        i === index ? { ...state, loading: true, error: undefined } : state,
+      ),
+    );
+    try {
+      if (!reference)
+        throw new Error(
+          "Add a product reference image in step 2 before generating images.",
+        );
+      const form = new FormData();
+      form.set("image", reference);
+      form.set(
+        "metadata",
+        JSON.stringify({
+          brand,
+          product,
+          visual: target.visuals[index],
+          ad: target.posts[index],
+          index,
+        }),
+      );
+      const response = await fetch("/api/images", {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setImageStates((previous) =>
+        previous.map((state, i) =>
+          i === index
+            ? { image: data.image, loading: false, stale: false }
+            : state,
+        ),
+      );
+    } catch (error) {
+      setImageStates((previous) =>
+        previous.map((state, i) =>
+          i === index
+            ? {
+                ...state,
+                loading: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Image generation failed.",
+              }
+            : state,
+        ),
+      );
+    }
+  }
+  function updateCampaign(next: Campaign) {
+    setImageStates((previous) =>
+      previous.map((state, i) =>
+        campaign &&
+        (campaign.visuals[i].prompt !== next.visuals[i].prompt ||
+          campaign.posts[i].concept !== next.posts[i].concept)
+          ? { ...state, stale: true }
+          : state,
+      ),
+    );
+    setCampaign(next);
   }
   async function copy(text: string, id: string) {
     try {
@@ -140,7 +251,11 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new window.Image();
-      img.onload = () => setImage(String(reader.result));
+      img.onload = () => {
+        setImage(String(reader.result));
+        setReference(f);
+        setImageStates([{}, {}, {}]);
+      };
       img.onerror = () => setError("This image could not be decoded.");
       img.src = String(reader.result);
     };
@@ -153,7 +268,7 @@ export default function Home() {
         {copied === id ? <Check size={15} /> : <Copy size={15} />}
       </button>
       <button
-        disabled={!!busy}
+        disabled={working}
         aria-label={`Regenerate ${id}`}
         onClick={() => generate(id)}
       >
@@ -173,7 +288,7 @@ export default function Home() {
         <div className="workspace-label">WORKSPACE</div>
         <button
           className="nav-active"
-          disabled={!!busy}
+          disabled={working}
           onClick={() => setStep(0)}
         >
           <Sparkles size={18} /> Campaign studio <span>1</span>
@@ -221,12 +336,13 @@ export default function Home() {
               <p>Turn what makes you unique into marketing that connects.</p>
             </div>
             <div className="studio-label">
-              <Sparkles size={15} /> AI-powered studio
+              <Sparkles size={15} />{" "}
+              {demo ? "Demo studio · no API charges" : "AI-powered studio"}
             </div>
           </div>
           <StepProgress
             step={step}
-            busy={!!busy}
+            busy={working}
             available={[
               true,
               !!brand,
@@ -240,6 +356,7 @@ export default function Home() {
               setError("");
             }}
           />
+          {notice && <div className="demo-note">{notice}</div>}
           {error && (
             <div className="error" role="alert">
               {error}
@@ -304,7 +421,7 @@ export default function Home() {
                   onChange={(e) => selectFile(e.target.files?.[0])}
                 />
                 <button
-                  disabled={!!busy}
+                  disabled={working}
                   className={`dropzone ${drag ? "dragging" : ""}`}
                   onClick={() => input.current?.click()}
                   onDragOver={(e) => {
@@ -358,7 +475,7 @@ export default function Home() {
                   </button>
                 </div>
                 <p className="privacy-note">
-                  With live AI, extracted text is sent to OpenAI for analysis.
+                  With live AI, extracted text is sent to FAL for analysis.
                 </p>
               </section>
               <aside className="insight-panel">
@@ -436,6 +553,12 @@ export default function Home() {
                           rows={key === "name" ? 1 : 3}
                           maxLength={key === "name" ? 200 : 3000}
                         />
+                        {evidence[key] && (
+                          <small className="evidence-note">
+                            Document evidence: “{evidence[key]}” · Applies to
+                            the extracted suggestion; review any edits.
+                          </small>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -569,7 +692,14 @@ export default function Home() {
                   )}
                 </button>
                 {image && (
-                  <button className="text-button" onClick={() => setImage("")}>
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setImage("");
+                      setReference(null);
+                      setImageStates([{}, {}, {}]);
+                    }}
+                  >
                     Remove image
                   </button>
                 )}
@@ -580,8 +710,9 @@ export default function Home() {
                 </p>
                 {product.price && <strong>{product.price}</strong>}
                 <div className="info-note">
-                  Images stay in your browser. Campaign direction uses your
-                  product description; image analysis is not included in V1.
+                  In live mode, your product image is sent to FAL as a
+                  reference for all three ads. Product shape and lettering may
+                  vary; review before use.
                 </div>
               </aside>
             </div>
@@ -616,11 +747,11 @@ export default function Home() {
               </div>
               <div className="generation-includes">
                 1 big idea <span>·</span> 3 social concepts <span>·</span> 3
-                visual directions
+                reference-based images
               </div>
               <button
                 className="primary large"
-                disabled={!!busy}
+                disabled={working}
                 onClick={() => generate()}
               >
                 {busy ? (
@@ -632,7 +763,9 @@ export default function Home() {
                 <ArrowRight size={18} />
               </button>
               <p className="muted-small">
-                You can edit and regenerate everything in the next step.
+                {demo
+                  ? "Demo mode shows your reference photo only. No paid requests are made."
+                  : "Generates 3 paid images, one per concept. Hourly usage limits apply. You can retry individual failures."}
               </p>
             </section>
           )}
@@ -641,8 +774,10 @@ export default function Home() {
               campaign={campaign}
               brandName={brand?.name}
               demo={demo}
-              busy={busy}
-              onChange={setCampaign}
+              busy={busy || (working ? "images" : "")}
+              imageStates={imageStates}
+              onImageGenerate={(index) => renderImage(index, campaign)}
+              onChange={updateCampaign}
               onGenerate={() => generate()}
               onEditProduct={() => setStep(1)}
               actions={action}
@@ -653,7 +788,7 @@ export default function Home() {
               <Layers size={14} /> Made for brands with a point of view.
             </span>
             <a
-              href="https://platform.openai.com/docs"
+              href="https://fal.ai/models/openrouter/router/api"
               target="_blank"
               rel="noreferrer"
             >

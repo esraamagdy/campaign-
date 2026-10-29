@@ -1,7 +1,7 @@
 export class BodyTooLargeError extends Error {}
 /** Bound the actual streamed body, including requests without Content-Length. */
 export async function readBody(
-  request: Request,
+  request: Pick<Request, "body">,
   limit: number,
 ): Promise<Uint8Array> {
   const reader = request.body?.getReader();

@@ -37,14 +37,9 @@ test("complete demo campaign workflow, editing, and targeted regeneration", asyn
   await page
     .getByLabel("Customer benefits", { exact: true })
     .fill("Keep essentials organized.");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "product.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aGN8AAAAASUVORK5CYII=",
-      "base64",
-    ),
-  });
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("e2e/fixtures/product.png");
   await expect(page.getByRole("img", { name: "Everyday Tote" })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Generate my campaign" }).click();
@@ -56,6 +51,25 @@ test("complete demo campaign workflow, editing, and targeted regeneration", asyn
       exact: false,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Hero advertising image" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Lifestyle advertising image" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Creative advertising image" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Demo reference only — not an AI-generated advertisement."),
+  ).toHaveCount(3);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download Hero image" }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe("forma-hero.png");
+  await page.getByRole("button", { name: "Regenerate Hero image" }).click();
+  await expect(
+    page.getByRole("button", { name: "Regenerate Hero image" }),
+  ).toBeEnabled();
   await page
     .getByLabel("Post 2 caption", { exact: true })
     .fill("My carefully edited caption");
@@ -169,4 +183,37 @@ test("extracts readable PDF and DOCX brand documents", async ({ request }) => {
     expect(result.demo).toBe(true);
     expect(result.brand.positioning).toBeTruthy();
   }
+});
+
+test("image API validates reference contents and generation metadata", async ({
+  request,
+}) => {
+  const { demoBrand, demoCampaign } = await import("../lib/mock");
+  const brand = demoBrand("Test brand");
+  const product = {
+    name: "Cup",
+    description: "A ceramic cup",
+    features: "",
+    benefits: "",
+    price: "",
+  };
+  const campaign = demoCampaign(brand, product);
+  const response = await request.post("/api/images", {
+    multipart: {
+      metadata: JSON.stringify({
+        brand,
+        product,
+        visual: campaign.visuals[0],
+        ad: campaign.posts[0],
+        index: 0,
+      }),
+      image: {
+        name: "fake.png",
+        mimeType: "image/png",
+        buffer: Buffer.from("not a png"),
+      },
+    },
+  });
+  expect(response.status()).toBe(400);
+  expect((await response.json()).error).toContain("decode");
 });

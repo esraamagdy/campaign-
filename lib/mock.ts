@@ -2,6 +2,9 @@ import { Brand, Product, Campaign } from "./schemas";
 export function demoBrand(text: string): Brand {
   return {
     name: "Your brand",
+    personality:
+      "Thoughtful, approachable, quietly confident (demo suggestion).",
+    colors: "Sage and cream (demo suggestion; review against your document).",
     positioning:
       "Thoughtful everyday essentials that make small moments feel exceptional.",
     audience:
@@ -30,6 +33,11 @@ export function demoCampaign(b: Brand, p: Product): Campaign {
       "Make it yours",
     ].map((title, i) => ({
       title,
+      headline: [
+        `Meet ${p.name}`,
+        `The details behind ${p.name}`,
+        `Make space for ${p.name}`,
+      ][i],
       concept: [
         `Introduce ${p.name} in a relatable everyday setting.`,
         `A close-up carousel exploring ${p.features || "the product’s considered details"}.`,
@@ -42,12 +50,10 @@ export function demoCampaign(b: Brand, p: Product): Campaign {
         "Find your everyday favorite",
       ][i],
     })),
-    visuals: ["The quiet hero", "A closer look", "In good company"].map(
-      (title, i) => ({
-        title,
-        concept: `${["A product-led still life", "A tactile detail composition", "A lifestyle moment"][i]} inspired by ${b.name}.`,
-        prompt: `Editorial e-commerce photograph of ${p.name}. Product description: ${p.description}. ${b.visual}. ${["Minimal hero composition on a plinth", "Macro detail composition with interesting shadows", "Authentic lifestyle setting with the product as the focal point"][i]}. No text, no logos, no invented product details.`,
-      }),
-    ),
+    visuals: ["Hero", "Lifestyle", "Creative"].map((title, i) => ({
+      title,
+      concept: `${["A product-led still life", "A tactile detail composition", "A lifestyle moment"][i]} inspired by ${b.name}.`,
+      prompt: `Editorial e-commerce photograph of ${p.name}. Product description: ${p.description}. ${b.visual}. ${["Minimal hero composition on a plinth", "Macro detail composition with interesting shadows", "Authentic lifestyle setting with the product as the focal point"][i]}. No text, no logos, no invented product details.`,
+    })),
   };
 }

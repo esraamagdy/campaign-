@@ -8,9 +8,10 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx tests/core.test.ts",
+    "test": "node --import tsx tests/core.test.ts && node --conditions=react-server --import tsx tests/providers.test.ts && node --conditions=react-server --import tsx tests/routes.test.ts",
     "test:e2e": "playwright test",
-    "format": "prettier --write app components lib tests e2e *.json *.mjs README.md"
+    "format": "prettier --write app components lib tests e2e *.json *.mjs README.md",
+    "test:e2e:live": "FORMA_LIVE_TESTS=1 playwright test"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.0",
@@ -20,6 +21,8 @@
     "pdf-parse": "^2.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {

@@ -1181,3 +1181,133 @@ fieldset.results {
   margin: 0;
   min-width: 0;
 }
+.ad-image-section {
+  margin: -23px -23px 18px;
+}
+.ad-image {
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  background: #edf1e5;
+  display: grid;
+  place-items: center;
+}
+.ad-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.image-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #92a282;
+  font-size: 11px;
+}
+.image-loading {
+  position: absolute;
+  inset: 0;
+  background: #f6f8f0e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+  color: #567148;
+}
+.image-loading small {
+  font-size: 10px;
+  color: #819276;
+}
+.image-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 17px 0;
+}
+.image-toolbar > div {
+  display: flex;
+  gap: 12px;
+}
+.image-toolbar .section-kicker {
+  margin: 0;
+  padding: 0;
+}
+.image-toolbar .text-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.image-note,
+.image-error {
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 5px 17px;
+}
+.image-error {
+  color: #a3492d;
+  background: #fff1e8;
+  border-radius: 5px;
+  padding: 9px;
+}
+.ad-card > .post-top {
+  position: relative;
+}
+.ad-card > .post-top > .card-actions {
+  top: 0;
+  right: 0;
+}
+.editable-ad-field {
+  position: relative;
+  padding-right: 0;
+}
+.editable-ad-field > .card-actions {
+  position: static;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.editable-ad-field > .card-actions button {
+  padding: 5px;
+}
+.ad-card > label textarea {
+  font-size: 12px;
+}
+.ad-card > label:has(textarea[aria-label$="headline"]) textarea {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.results > .demo-note {
+  margin-bottom: 0;
+}
+@media (max-width: 1100px) {
+  .ad-image-section {
+    margin: -17px -17px 18px;
+  }
+  .image-toolbar {
+    padding-left: 12px;
+    padding-right: 12px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 780px) {
+  .ad-image {
+    max-height: 420px;
+    aspect-ratio: 1;
+  }
+  .image-toolbar {
+    flex-wrap: nowrap;
+  }
+}
+.evidence-note {
+  display: block;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #829173;
+  margin-top: 7px;
+}

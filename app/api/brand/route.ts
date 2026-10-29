@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import mammoth from "mammoth";
-import { MAX_DOCUMENT, brandSchema } from "@/lib/schemas";
+import { MAX_DOCUMENT } from "@/lib/schemas";
+import { brandExtractionSchema, groundBrand } from "@/lib/brand";
 import { demoBrand } from "@/lib/mock";
-import { generate } from "@/lib/ai";
+import { generate, aiConfig } from "@/lib/ai";
+import { brandPrompt } from "@/lib/prompts";
+import { apiError } from "@/lib/api-error";
 import { BodyTooLargeError, readBody } from "@/lib/http";
 export const runtime = "nodejs";
+export const maxDuration = 90;
 export async function POST(req: Request) {
   try {
     if (Number(req.headers.get("content-length")) > MAX_DOCUMENT + 100000)
@@ -66,25 +70,28 @@ export async function POST(req: Request) {
         },
         { status: 400 },
       );
-    const demo = !process.env.OPENAI_API_KEY;
-    const brand = demo
-      ? demoBrand(text)
-      : await generate(
-          `Analyze this brand document. Return JSON with string fields name, positioning, audience, tone, values, messages, visual. Identify uncertain information as unspecified. Document: ${JSON.stringify(text.slice(0, 30000))}`,
-          brandSchema,
+    const { demo } = aiConfig();
+    const result = demo
+      ? { brand: demoBrand(text), evidence: {} }
+      : groundBrand(
+          await generate(
+            brandPrompt(text.slice(0, 30000)),
+            brandExtractionSchema,
+          ),
+          text.slice(0, 30000),
         );
-    return NextResponse.json({ brand, demo });
+    return NextResponse.json(
+      { ...result, demo, truncated: text.length > 30000 },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     if (error instanceof BodyTooLargeError)
-      return NextResponse.json({ error: error.message }, { status: 413 });
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not analyze this file.",
-      },
-      { status: 422 },
+      return apiError(error, "Document too large.");
+    // Parser errors should not expose internals; provider and usage errors retain useful safe messages.
+    return apiError(
+      error,
+      "Could not analyze this document. Check it is readable and the server AI configuration is valid.",
+      422,
     );
   }
 }

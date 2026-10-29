@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Leaf, RotateCw, Sparkles } from "lucide-react";
-import type { Campaign } from "@/lib/schemas";
+import { AdImage } from "./AdImage";
+import type { Campaign, ImageState } from "@/lib/schemas";
 export function CampaignResults({
   campaign,
   brandName,
@@ -10,7 +11,11 @@ export function CampaignResults({
   onGenerate,
   onEditProduct,
   actions,
+  imageStates,
+  onImageGenerate,
 }: {
+  imageStates: ImageState[];
+  onImageGenerate: (index: number) => void;
   campaign: Campaign;
   brandName?: string;
   demo: boolean;
@@ -25,7 +30,8 @@ export function CampaignResults({
       {demo && (
         <div className="demo-note">
           <Sparkles size={16} /> Demo AI output — sample campaign content.
-          Configure a server API key for AI-generated results.
+          Images show the uploaded reference only. Configure a server API key
+          for real strategy and advertising images.
         </div>
       )}
       <section className="campaign-hero">
@@ -66,29 +72,40 @@ export function CampaignResults({
         ))}
       </div>
       <div className="results-heading">
-        <h3>Social, with something to say.</h3>
+        <h3>Three concepts. One unmistakable brand.</h3>
         <span>03 POST CONCEPTS</span>
       </div>
       <div className="strategy-grid">
         {campaign.posts.map((post, i) => (
-          <section className="panel result-card" key={i}>
+          <section className="panel result-card ad-card" key={i}>
+            <AdImage
+              state={imageStates[i] || {}}
+              index={i}
+              disabled={!!busy}
+              onGenerate={() => onImageGenerate(i)}
+            />
             <div className="post-top">
               <span className="post-number">0{i + 1}</span>
               {actions(`post${i}`, Object.values(post).join("\n\n"))}
             </div>
             {(Object.keys(post) as (keyof typeof post)[]).map((key) => (
               <label key={key}>
-                <span>{key === "title" ? "POST NAME" : key.toUpperCase()}</span>
-                <textarea
-                  aria-label={`Post ${i + 1} ${key}`}
-                  rows={key === "title" ? 1 : 3}
-                  value={post[key]}
-                  onChange={(e) => {
-                    const posts = [...campaign.posts];
-                    posts[i] = { ...post, [key]: e.target.value };
-                    onChange({ ...campaign, posts });
-                  }}
-                />
+                <span>
+                  {key === "title" ? "CONCEPT NAME" : key.toUpperCase()}
+                </span>
+                <div className="editable-ad-field">
+                  <textarea
+                    aria-label={`Post ${i + 1} ${key}`}
+                    rows={key === "title" ? 1 : 3}
+                    value={post[key]}
+                    onChange={(e) => {
+                      const posts = [...campaign.posts];
+                      posts[i] = { ...post, [key]: e.target.value };
+                      onChange({ ...campaign, posts });
+                    }}
+                  />
+                  {actions(`post${i}.${key}`, post[key])}
+                </div>
               </label>
             ))}
           </section>
@@ -101,9 +118,8 @@ export function CampaignResults({
       <div className="strategy-grid">
         {campaign.visuals.map((visual, i) => (
           <section className="panel result-card" key={i}>
-            <div className={`visual-placeholder visual-${i}`}>
-              <span>✦</span>
-              <small>VISUAL CONCEPT 0{i + 1} · NO IMAGE GENERATED</small>
+            <div className="section-kicker">
+              {["HERO", "LIFESTYLE", "CREATIVE"][i]} ART DIRECTION
             </div>
             {actions(`visual${i}`, Object.values(visual).join("\n\n"))}
             {(Object.keys(visual) as (keyof typeof visual)[]).map((key) => (
