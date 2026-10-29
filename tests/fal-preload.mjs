@@ -2,12 +2,20 @@
 if (process.env.FORMA_TEST_MOCK_FAL !== "1")
   throw new Error("This preload is only for isolated integration tests.");
 import fs from "node:fs";
+import sharp from "sharp";
 const original = globalThis.fetch;
 const png = fs
   .readFileSync(`${process.cwd()}/e2e/fixtures/product.png`)
   .toString("base64");
+const jpeg = (
+  await sharp(Buffer.from(png, "base64")).jpeg().toBuffer()
+).toString("base64");
 globalThis.fetch = async (input, init) => {
   const url = String(input);
+  if (url === "https://v3.fal.media/files/forma-fixture.png")
+    return new Response(new Uint8Array(Buffer.from(png, "base64")), {
+      headers: { "Content-Type": "application/octet-stream" },
+    });
   if (!url.startsWith("https://fal.run/")) {
     if (
       url.startsWith("http://127.0.0.1:") ||
@@ -30,7 +38,18 @@ globalThis.fetch = async (input, init) => {
     )
       return new Response("", { status: 400 });
     return Response.json({
-      images: [{ url: `data:image/png;base64,${png}` }],
+      images: [
+        {
+          url: body.prompt.startsWith("Create a Lifestyle")
+            ? `data:image/jpeg;base64,${jpeg}`
+            : body.prompt.startsWith("Create a Creative")
+              ? "https://v3.fal.media/files/forma-fixture.png"
+              : `data:application/octet-stream;base64,${png}`,
+          content_type: "image/png",
+          width: 200,
+          height: 200,
+        },
+      ],
       has_nsfw_concepts: [false],
     });
   }

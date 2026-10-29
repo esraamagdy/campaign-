@@ -217,3 +217,82 @@ test("image API validates reference contents and generation metadata", async ({
   expect(response.status()).toBe(400);
   expect((await response.json()).error).toContain("decode");
 });
+
+async function openFixtureCampaign(page: import("@playwright/test").Page) {
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .first()
+    .setInputFiles({
+      name: "fixture.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "A fixture brand with a calm tone and considered ceramic products.",
+      ),
+    });
+  await page.getByRole("button", { name: "Analyze brand" }).click();
+  await page.getByRole("button", { name: "Approve brand & continue" }).click();
+  await page.getByLabel("Product name *", { exact: true }).fill("Fixture cup");
+  await page
+    .getByLabel("Description *", { exact: true })
+    .fill("A ceramic espresso cup.");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles("e2e/fixtures/product.png");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Generate my campaign" }).click();
+}
+test("a successful API response missing image data is visible instead of silently blank", async ({
+  page,
+}) => {
+  await page.route("**/api/images", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "x-forma-request-id": "fixture-missing",
+      },
+      body: JSON.stringify({ ok: true }),
+    }),
+  );
+  await openFixtureCampaign(page);
+  await expect(page.locator(".image-error")).toHaveCount(3);
+  await expect(page.locator(".image-error").first()).toContainText(
+    "no valid image data",
+  );
+  await expect(page.locator(".image-error").first()).toContainText(
+    "fixture-missing",
+  );
+});
+test("browser decode failures are visible without triggering another image request", async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route("**/api/images", (route) => {
+    requests++;
+    return route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "x-forma-request-id": "fixture-corrupt",
+      },
+      body: JSON.stringify({
+        image: {
+          dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+          demo: false,
+          model: "fixture",
+        },
+      }),
+    });
+  });
+  await openFixtureCampaign(page);
+  await expect(
+    page.getByText("The browser could not display the returned image.", {
+      exact: false,
+    }),
+  ).toHaveCount(3);
+  await expect(page.locator(".image-error").first()).toContainText(
+    "fixture-corrupt",
+  );
+  expect(requests).toBe(3);
+});

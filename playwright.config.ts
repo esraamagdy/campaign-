@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 const live = process.env.FORMA_LIVE_TESTS === "1";
-const port = live ? 3001 : 3000;
+const port = live ? 3101 : 3100;
 export default defineConfig({
   testDir: "./e2e",
   testMatch: live ? "live.spec.ts" : "campaign.spec.ts",
@@ -17,7 +17,7 @@ export default defineConfig({
   webServer: {
     command: `npm run start -- --port ${port}`,
     url: `http://127.0.0.1:${port}`,
-    reuseExistingServer: !live && !process.env.CI,
+    reuseExistingServer: false,
     timeout: 60000,
     env: live
       ? {

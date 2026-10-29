@@ -1,7 +1,8 @@
 import "server-only";
 import { z } from "zod";
 import { aiConfig } from "./config";
-import { readBody } from "../http";
+import { decodeFalImage } from "./image-result";
+import { logImage, type ImageContext } from "../image-diagnostics";
 export class ProviderError extends Error {
   constructor(
     message: string,
@@ -17,6 +18,7 @@ export interface ImageProvider {
   edit(
     reference: File,
     prompt: string,
+    context?: ImageContext,
   ): Promise<{ dataUrl: string; model: string }>;
 }
 async function check(response: Response) {
@@ -33,7 +35,12 @@ async function check(response: Response) {
             : "FAL is unavailable. Please retry later.";
   throw new ProviderError(message, response.status === 429 ? 429 : 502);
 }
-async function run(endpoint: string, input: unknown, timeout: number) {
+async function run(
+  endpoint: string,
+  input: unknown,
+  timeout: number,
+  context?: ImageContext,
+) {
   const response = await fetch(`https://fal.run/${endpoint}`, {
     method: "POST",
     headers: {
@@ -44,6 +51,15 @@ async function run(endpoint: string, input: unknown, timeout: number) {
     signal: AbortSignal.timeout(timeout),
     redirect: "error",
   });
+  if (context)
+    logImage(context, {
+      stage: "provider_response",
+      providerStatus: response.status,
+      providerRequestId:
+        response.headers.get("x-fal-request-id") ||
+        response.headers.get("x-request-id") ||
+        undefined,
+    });
   await check(response);
   try {
     const result = await response.json();
@@ -93,69 +109,8 @@ export const falText: TextProvider = {
     }
   },
 };
-const MAX_OUTPUT = 18 * 1024 * 1024;
-async function readImage(url: unknown): Promise<string> {
-  if (typeof url !== "string")
-    throw new ProviderError("FAL returned no usable image. Try again.");
-  let buffer: Buffer;
-  if (url.startsWith("data:")) {
-    const prefix = "data:image/png;base64,";
-    if (
-      !url.startsWith(prefix) ||
-      url.length > Math.ceil(MAX_OUTPUT / 3) * 4 + prefix.length
-    )
-      throw new ProviderError("FAL returned an unsupported image. Try again.");
-    const base64 = url.slice(prefix.length);
-    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64))
-      throw new ProviderError("FAL returned an invalid image. Try again.");
-    buffer = Buffer.from(base64, "base64");
-  } else {
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new ProviderError("FAL returned an invalid image address.");
-    }
-    if (
-      parsed.protocol !== "https:" ||
-      parsed.username ||
-      parsed.password ||
-      parsed.port ||
-      !(
-        parsed.hostname === "fal.media" ||
-        parsed.hostname.endsWith(".fal.media")
-      )
-    )
-      throw new ProviderError("FAL returned an untrusted image address.");
-    // Never forward the FAL key to result storage, and never follow redirects.
-    const response = await fetch(parsed.toString(), {
-      signal: AbortSignal.timeout(30000),
-      redirect: "error",
-    });
-    await check(response);
-    if (Number(response.headers.get("content-length")) > MAX_OUTPUT)
-      throw new ProviderError(
-        "The generated image exceeds the download size limit.",
-      );
-    try {
-      buffer = Buffer.from(await readBody(response, MAX_OUTPUT));
-    } catch {
-      throw new ProviderError(
-        "Could not download the generated image within the size limit.",
-      );
-    }
-  }
-  if (
-    buffer.length > MAX_OUTPUT ||
-    !buffer
-      .subarray(0, 8)
-      .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-  )
-    throw new ProviderError("FAL returned an invalid PNG image. Try again.");
-  return `data:image/png;base64,${buffer.toString("base64")}`;
-}
 export const falImage: ImageProvider = {
-  async edit(reference, prompt) {
+  async edit(reference, prompt, context) {
     const { imageModel } = aiConfig();
     const image_url = `data:${reference.type};base64,${Buffer.from(await reference.arrayBuffer()).toString("base64")}`;
     const result = await run(
@@ -170,13 +125,11 @@ export const falImage: ImageProvider = {
         sync_mode: true,
       },
       180000,
+      context,
     );
-    if (result.has_nsfw_concepts?.[0])
-      throw new ProviderError(
-        "FAL could not return this image because of its safety checks. Revise the direction and try again.",
-      );
+
     return {
-      dataUrl: await readImage(result.images?.[0]?.url),
+      dataUrl: await decodeFalImage(result, context),
       model: imageModel,
     };
   },

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Image from "next/image";
 import { Download, RotateCw, Loader2, ImagePlus } from "lucide-react";
 import type { ImageState } from "@/lib/schemas";
@@ -13,16 +14,28 @@ export function AdImage({
   disabled: boolean;
 }) {
   const type = ["Hero", "Lifestyle", "Creative"][index];
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const displayFailed = !!state.image && failedSource === state.image.dataUrl;
   return (
     <div className="ad-image-section">
       <div className={`ad-image visual-${index}`}>
-        {state.image ? (
+        {state.image && !displayFailed ? (
           <Image
             unoptimized
             src={state.image.dataUrl}
             width={1024}
             height={1024}
             alt={`${type} advertising image`}
+            onLoad={() => setFailedSource(null)}
+            onError={() => {
+              setFailedSource(state.image!.dataUrl);
+              console.warn("[forma:image]", {
+                stage: "browser_decode",
+                code: "image_decode_failed",
+                index,
+                requestId: state.image?.requestId,
+              });
+            }}
           />
         ) : (
           <div className="image-empty">
@@ -70,6 +83,15 @@ export function AdImage({
       {state.stale && (
         <p className="image-note">
           Direction changed. Regenerate this image to match.
+        </p>
+      )}
+      {displayFailed && (
+        <p className="image-error" role="alert">
+          The browser could not display the returned image. No new generation
+          was requested.
+          {state.image?.requestId
+            ? ` Reference: ${state.image.requestId}.`
+            : ""}
         </p>
       )}
       {state.error && (

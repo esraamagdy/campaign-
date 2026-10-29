@@ -62,6 +62,17 @@ test("live-mode UI and routes with mock FAL: grounded brand, paired ads, partial
     await expect(
       page.getByRole("img", { name: `${type} advertising image` }),
     ).toBeVisible();
+    await expect
+      .poll(() =>
+        page
+          .getByRole("img", { name: `${type} advertising image` })
+          .evaluate(
+            (image) =>
+              (image as HTMLImageElement).complete &&
+              (image as HTMLImageElement).naturalWidth > 0,
+          ),
+      )
+      .toBe(true);
   }
   await expect(
     page.getByRole("button", { name: "Regenerate Hero image" }),

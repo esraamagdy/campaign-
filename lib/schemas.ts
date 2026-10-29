@@ -82,7 +82,12 @@ export const imageRequestSchema = z.object({
   ad: campaignSchema.shape.posts.element,
   index: z.number().int().min(0).max(2),
 });
-export type GeneratedImage = { dataUrl: string; demo: boolean; model: string };
+export type GeneratedImage = {
+  dataUrl: string;
+  demo: boolean;
+  model: string;
+  requestId?: string;
+};
 export type ImageState = {
   image?: GeneratedImage;
   loading?: boolean;

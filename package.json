@@ -8,10 +8,11 @@
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx tests/core.test.ts && node --conditions=react-server --import tsx tests/providers.test.ts && node --conditions=react-server --import tsx tests/routes.test.ts",
+    "test": "node --import tsx tests/core.test.ts && node --conditions=react-server --import tsx tests/providers.test.ts && node --conditions=react-server --import tsx tests/routes.test.ts && node --conditions=react-server --import tsx tests/image-result.test.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write app components lib tests e2e *.json *.mjs README.md",
-    "test:e2e:live": "FORMA_LIVE_TESTS=1 playwright test"
+    "test:e2e:live": "FORMA_LIVE_TESTS=1 playwright test",
+    "preview:fixtures": "node scripts/preview-fixtures.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.0",

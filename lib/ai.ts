@@ -14,10 +14,14 @@ export async function generate<T>(
     release();
   }
 }
-export async function generateImage(reference: File, prompt: string) {
+export async function generateImage(
+  reference: File,
+  prompt: string,
+  context?: import("./image-diagnostics").ImageContext,
+) {
   const release = reserveUsage("image");
   try {
-    return await falImage.edit(reference, prompt);
+    return await falImage.edit(reference, prompt, context);
   } finally {
     release();
   }

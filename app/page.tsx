@@ -29,6 +29,7 @@ import {
   Heart,
 } from "lucide-react";
 import type { Brand, Product, Campaign, ImageState } from "@/lib/schemas";
+import { readImageResponse } from "@/lib/image-client";
 import { MAX_DOCUMENT, MAX_IMAGE } from "@/lib/schemas";
 const fields: { key: keyof Brand; label: string; icon: typeof Target }[] = [
   { key: "name", label: "Brand name", icon: Leaf },
@@ -190,13 +191,10 @@ export default function Home() {
         method: "POST",
         body: form,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      const image = await readImageResponse(response);
       setImageStates((previous) =>
         previous.map((state, i) =>
-          i === index
-            ? { image: data.image, loading: false, stale: false }
-            : state,
+          i === index ? { image, loading: false, stale: false } : state,
         ),
       );
     } catch (error) {
@@ -710,9 +708,9 @@ export default function Home() {
                 </p>
                 {product.price && <strong>{product.price}</strong>}
                 <div className="info-note">
-                  In live mode, your product image is sent to FAL as a
-                  reference for all three ads. Product shape and lettering may
-                  vary; review before use.
+                  In live mode, your product image is sent to FAL as a reference
+                  for all three ads. Product shape and lettering may vary;
+                  review before use.
                 </div>
               </aside>
             </div>

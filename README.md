@@ -12,7 +12,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-The development app runs on port 3000. A normal production workflow is `npm run build` followed by `npm start`. The FAL migration was tested directly against source without running a production rebuild. In cloud tasks, use the existing `/workspace/campaign-` checkout; tasks are already isolated, so do not create another Git worktree unless requested. Processes must restart in new sessions.
+The development app runs on port 3000. A normal production workflow is `npm run build` followed by `npm start`. The FAL migration was initially tested directly against source; the subsequent image-delivery fix also passed production build and isolated browser checks. In cloud tasks, use the existing `/workspace/campaign-` checkout; tasks are already isolated, so do not create another Git worktree unless requested. Processes must restart in new sessions.
 
 ## One provider and one key
 
@@ -67,7 +67,7 @@ Brand extraction keeps the evidence layer: each field must have a supporting quo
 
 Image prompts request preservation of product shape, materials, color, packaging and branding. Exact lettering, logos and geometry can still vary; review all images before advertising. Headline/caption/CTA content is rendered outside the image rather than baked into generated text overlays.
 
-Session state is in browser memory and resets on refresh; download anything to keep. The app does not persist uploads or results. In live mode, text, approved brand/product data and reference images are sent to FAL and the downstream model providers it routes to; their data policies apply. Inline PNG results are preferred. FAL storage downloads are bounded to 18 MB, restricted to HTTPS FAL media hosts, validated as PNG, and returned to the browser as data URLs. `sync_mode=true` requests inline media; it is not a general claim that FAL retains no request data.
+Session state is in browser memory and resets on refresh; download anything to keep. The app does not persist uploads or results. In live mode, text, approved brand/product data and reference images are sent to FAL and the downstream model providers it routes to; their data policies apply. Inline PNG results are preferred. FAL storage downloads are bounded to 18 MB, restricted to HTTPS FAL media hosts, fully decoded and normalized to PNG, and returned to the browser as data URLs. `sync_mode=true` requests inline media; it is not a general claim that FAL retains no request data.
 
 ## Usage limits
 
@@ -102,4 +102,30 @@ npm run test:e2e
 npm run test:e2e:live
 ```
 
-They need a current production build, Chromium at `/usr/bin/chromium` or `CHROMIUM_PATH`, and available ports 3000/3001. The mocked live suite uses `tests/fal-preload.mjs`, never imported by the application. Browser suites were not rerun against a stale build during this migration. No claim is made about paid FAL connectivity, output originality, product fidelity, account access or current pricing until real testing is authorized and configured.
+They need a current production build, Chromium at `/usr/bin/chromium` or `CHROMIUM_PATH`, and available ports 3100/3101. The mocked live suite uses `tests/fal-preload.mjs`, never imported by the application. Browser suites were not rerun against a stale build during this migration. No claim is made about paid FAL connectivity, output originality, product fidelity, account access or current pricing until real testing is authorized and configured.
+
+## Image-delivery investigation and free verification
+
+FAL's **Completed** status confirms inference, not successful delivery/decoding in the browser. With `sync_mode=true`, the endpoint requests inline data instead of a hosted preview. A dashboard preview marked “Not available” alone is not evidence of inference failure, and an inline result may not be recoverable from dashboard history. Do not regenerate just to diagnose this.
+
+The previous parser rejected any data URI that did not begin exactly `data:image/png;base64,`, even if its bytes were a valid image. It also checked only the PNG signature, letting corrupt files reach the browser. Separately, React accepted malformed successful API responses without checking the image contract, and the image component had no browser-decode error handler. Those silent paths are now rejected or displayed in the existing error area. These defects are reproduced by tests; the exact original live response subtype cannot be identified without its HTTP response or diagnostic metadata, which was not available during this investigation.
+
+The decoder now handles direct FAL and SDK-wrapped image payloads, inline base64 with generic/unspecified MIME labels or MIME parameters, and hosted HTTPS `fal.media` subdomains. Actual PNG/JPEG/WebP bytes are fully decoded with size/pixel limits and returned as normalized PNG data URLs. SVG/HTML, corrupt bytes, malformed base64 and untrusted hosts are rejected. Hosted downloads remain bounded, carry no FAL key, and do not follow redirects. `sync_mode=true` is preserved; no fallback paid request is made.
+
+`/api/images` assigns an `X-Forma-Request-Id` to every response. Successful image objects include that ID; failed requests show it beneath the card. Server `[forma:image]` records correlate the route, FAL HTTP status/request ID, inline/hosted source, declared MIME category, decoded format/dimensions/byte counts and failure code. No prompts, reference images, generated base64, media URLs/query tokens, credentials, raw provider bodies or exception objects are logged. Browser decode failures log only the card index, safe code and request reference, and are visible in the existing card error area. Previous successful images remain available after failed requests.
+
+Verify without credits or real generation:
+
+```sh
+npm test
+npm run typecheck
+npm run lint
+npm run build
+npm run test:e2e
+npm run test:e2e:live
+npm run preview:fixtures
+```
+
+The fixture preview starts the built app privately on loopback port **3102** with a dummy key and a test-only interceptor. On your computer, open that local port; in Codespaces, use private port forwarding. Upload `e2e/fixtures/brand.docx` (or any test document), use a test product and `e2e/fixtures/product.png`, then run through the normal workflow. Button actions return existing fixture images only—no inference is performed. Hero exercises generic-MIME inline PNG, Lifestyle inline JPEG, and Creative a mocked hosted FAL image. All three should display and download. This confirms delivery and rendering, not actual model quality. Stop this fixture server before running the real app; normal `npm start` does not load the interceptor.
+
+Automated browser suites use isolated ports **3100/3101**, never attach to an existing server, and override real credentials/mode with demo or mocked settings. Tests assert `complete && naturalWidth > 0`, not just visible `<img>` elements. They also verify that malformed 200 responses and browser decode failures produce visible errors without automatic generation retries. No live FAL inference or retrieval of private historical results is part of these checks.
