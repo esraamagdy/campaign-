@@ -1,0 +1,58 @@
+{
+  "provenance": "synthetic-authored",
+  "liveQualityVerified": false,
+  "cases": [
+    {
+      "file": "brand-rich.txt",
+      "supported": {
+        "name": "Cinder",
+        "personality": "warm and practical",
+        "positioning": "useful handmade ceramics for daily coffee rituals",
+        "audience": "home espresso enthusiasts",
+        "tone": "clear and calm",
+        "values": "care and durability",
+        "messages": "A considered cup for your coffee pause",
+        "colors": ["#123456", "#FFF8E7"],
+        "visual": "natural daylight and uncluttered backgrounds"
+      },
+      "missing": [],
+      "forbiddenClaims": ["certified", "discount", "guaranteed"]
+    },
+    {
+      "file": "brand-sparse.txt",
+      "supported": { "name": "Pebble", "tone": "friendly and direct" },
+      "missing": [
+        "audience",
+        "colors",
+        "personality",
+        "positioning",
+        "values",
+        "messages",
+        "visual"
+      ],
+      "forbiddenClaims": ["eco-certified", "#123456", "students"]
+    },
+    {
+      "file": "brand-conflicting.txt",
+      "supported": {
+        "name": "Morrow",
+        "colors": ["#114433"],
+        "visual": "plain neutral background"
+      },
+      "conflicting": ["tone"],
+      "missing": [
+        "audience",
+        "personality",
+        "positioning",
+        "values",
+        "messages"
+      ],
+      "forbiddenClaims": [
+        "clinically certified",
+        "medical benefits",
+        "#2244AA as a current color"
+      ],
+      "reviewNote": "Both tone passages are genuine evidence but conflict. A source substring match alone cannot resolve this. Report conflict for human review; never silently choose one."
+    }
+  ]
+}

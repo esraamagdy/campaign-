@@ -635,8 +635,14 @@ h3 {
   grid-template-columns: 1fr 1fr;
   gap: 19px;
 }
-.brand-grid label:first-child {
+.brand-grid > .brand-field {
+  min-width: 0;
+}
+.brand-grid > .brand-field:first-child {
   grid-column: 1/-1;
+}
+.brand-field .evidence-note {
+  overflow-wrap: anywhere;
 }
 label {
   display: block;
@@ -1109,7 +1115,7 @@ footer a {
   .brand-grid {
     grid-template-columns: 1fr;
   }
-  .brand-grid label:first-child {
+  .brand-grid > .brand-field:first-child {
     grid-column: auto;
   }
   .review-heading {

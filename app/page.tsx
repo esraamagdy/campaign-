@@ -34,6 +34,14 @@ import {
   decodeImageBeforeDisplay,
 } from "@/lib/image-client";
 import { MAX_DOCUMENT, MAX_IMAGE } from "@/lib/schemas";
+import {
+  createBrandReview,
+  brandReviewSchema,
+  editBrandField,
+  revertBrandField,
+  MISSING_BRAND_VALUE,
+  type BrandReview,
+} from "@/lib/brand-review";
 const fields: { key: keyof Brand; label: string; icon: typeof Target }[] = [
   { key: "name", label: "Brand name", icon: Leaf },
   { key: "personality", label: "Brand personality", icon: Heart },
@@ -61,9 +69,14 @@ export default function Home() {
     [reference, setReference] = useState<File | null>(null),
     [imageStates, setImageStates] = useState<ImageState[]>([{}, {}, {}]),
     [notice, setNotice] = useState(""),
-    [evidence, setEvidence] = useState<Partial<Record<keyof Brand, string>>>(
-      {},
-    ),
+    [review, setReview] = useState<BrandReview | null>(null),
+    [extracted, setExtracted] = useState<{
+      brand: Brand;
+      review: BrandReview;
+      file: File;
+    } | null>(null),
+    [replacementPending, setReplacementPending] = useState(false),
+    [brandApproved, setBrandApproved] = useState(false),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [demo, setDemo] = useState(false),
@@ -93,7 +106,8 @@ export default function Home() {
       return;
     }
     setFile(f);
-    setBrand(null);
+    setReplacementPending(true);
+    setBrandApproved(false);
   }
   async function analyze() {
     if (!file) return;
@@ -106,7 +120,14 @@ export default function Home() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setBrand(json.brand);
-      setEvidence(json.evidence || {});
+      const parsedReview = brandReviewSchema.safeParse(json.review);
+      const nextReview: BrandReview = parsedReview.success
+        ? parsedReview.data
+        : createBrandReview(json.brand, json.evidence || {}, json.demo);
+      setReview(nextReview);
+      setExtracted({ brand: json.brand, review: nextReview, file });
+      setReplacementPending(false);
+      setBrandApproved(false);
       setCampaign(null);
       setImageStates([{}, {}, {}]);
       setDemo(json.demo);
@@ -123,6 +144,13 @@ export default function Home() {
   }
   async function generate(element?: string) {
     if (!brand) return;
+    if (!brandApproved || replacementPending) {
+      setStep(0);
+      setError(
+        "Review and approve the current brand details before generating a campaign.",
+      );
+      return;
+    }
     setBusy(element || "campaign");
     setError("");
     try {
@@ -170,6 +198,13 @@ export default function Home() {
   }
   async function renderImage(index: number, target: Campaign) {
     if (!brand) return;
+    if (!brandApproved || replacementPending) {
+      setStep(0);
+      setError(
+        "Review and approve the current brand details before generating an image.",
+      );
+      return;
+    }
     setImageStates((previous) =>
       previous.map((state, i) =>
         i === index ? { ...state, loading: true, error: undefined } : state,
@@ -265,7 +300,30 @@ export default function Home() {
     };
     reader.readAsDataURL(f);
   }
-  const validBrand = brand && Object.values(brand).every((v) => v.trim());
+  function updateBrandField(key: keyof Brand, value: string) {
+    if (!brand || !review) return;
+    setBrand({ ...brand, [key]: value });
+    setReview(editBrandField(review, key, value));
+    setBrandApproved(false);
+  }
+  function restoreBrandField(key: keyof Brand) {
+    if (!brand || !review || !extracted) return;
+    setBrand({ ...brand, [key]: extracted.brand[key] });
+    setReview(revertBrandField(review, key, extracted.review));
+    setBrandApproved(false);
+  }
+  function approveBrand() {
+    if (!brand || replacementPending || working) return;
+    const approved = Object.fromEntries(
+      Object.entries(brand).map(([key, value]) => [
+        key,
+        value.trim() || MISSING_BRAND_VALUE,
+      ]),
+    ) as Brand;
+    setBrand(approved);
+    setBrandApproved(true);
+    setStep(1);
+  }
   const action = (id: string, text: string) => (
     <div className="card-actions">
       <button aria-label={`Copy ${id}`} onClick={() => copy(text, id)}>
@@ -349,8 +407,9 @@ export default function Home() {
             busy={working}
             available={[
               true,
-              !!brand,
-              !!validBrand &&
+              brandApproved && !replacementPending,
+              brandApproved &&
+                !replacementPending &&
                 !!product.name.trim() &&
                 !!product.description.trim(),
               !!campaign,
@@ -361,6 +420,24 @@ export default function Home() {
             }}
           />
           {notice && <div className="demo-note">{notice}</div>}
+          {replacementPending && extracted && (
+            <div className="demo-note" role="status">
+              Showing the previous analysis for {extracted.file.name}. Analyze{" "}
+              {file?.name} to replace it. The previous draft is kept if analysis
+              fails.{" "}
+              <button
+                className="text-button"
+                disabled={working}
+                onClick={() => {
+                  setFile(extracted.file);
+                  setReplacementPending(false);
+                  setError("");
+                }}
+              >
+                Keep previous analysis
+              </button>
+            </div>
+          )}
           {error && (
             <div className="error" role="alert">
               {error}
@@ -521,12 +598,15 @@ export default function Home() {
                   Always your brand. Always your final say.
                 </div>
               </aside>
-              {brand && (
+              {brand && review && (
                 <section className="panel brand-review">
                   <div className="review-heading">
                     <div>
                       <h3>Your brand DNA</h3>
-                      <p>Review and edit every detail before continuing.</p>
+                      <p>
+                        Review and edit every detail before continuing.
+                        {extracted && ` Analysis: ${extracted.file.name}.`}
+                      </p>
                     </div>
                     {demo && (
                       <span className="demo-badge">
@@ -541,37 +621,78 @@ export default function Home() {
                       brand details.
                     </p>
                   )}
+                  <p className="evidence-note">
+                    A matching document quote locates the source; it does not
+                    verify that the quote supports the extraction. Check the
+                    meaning before approval. Blank fields remain unspecified
+                    when you approve; they will not be filled with brand facts.
+                  </p>
                   <div className="brand-grid">
                     {fields.map(({ key, label, icon: Icon }) => (
-                      <label key={key}>
-                        <span>
-                          <Icon size={14} />
-                          {label}
-                        </span>
+                      <div
+                        key={key}
+                        className="brand-field"
+                        data-testid={`brand-field-${key}`}
+                      >
+                        <label htmlFor={`brand-${key}`}>
+                          <span>
+                            <Icon size={14} />
+                            {label}
+                          </span>
+                        </label>
                         <textarea
+                          id={`brand-${key}`}
                           aria-label={label}
                           value={brand[key]}
                           onChange={(e) =>
-                            setBrand({ ...brand, [key]: e.target.value })
+                            updateBrandField(key, e.target.value)
                           }
                           rows={key === "name" ? 1 : 3}
                           maxLength={key === "name" ? 200 : 3000}
                         />
-                        {evidence[key] && (
+                        <small className="evidence-note">
+                          {review[key].origin === "document"
+                            ? "Document extraction — review support"
+                            : review[key].origin === "user"
+                              ? "User supplied — not document evidence"
+                              : review[key].origin === "demo"
+                                ? "Demo suggestion — not from your document"
+                                : "Missing — not specified"}
+                        </small>
+                        {review[key].origin === "document" &&
+                          review[key].quote && (
+                            <small className="evidence-note">
+                              Source quote: “{review[key].quote}”
+                            </small>
+                          )}
+                        {review[key].reason && (
                           <small className="evidence-note">
-                            Document evidence: “{evidence[key]}” · Applies to
-                            the extracted suggestion; review any edits.
+                            {review[key].reason}
                           </small>
                         )}
-                      </label>
+                        {extracted && brand[key] !== extracted.brand[key] && (
+                          <button
+                            className="text-button"
+                            disabled={working}
+                            onClick={() => restoreBrandField(key)}
+                            aria-label={`Restore extracted ${label.toLowerCase()}`}
+                          >
+                            Restore extracted value
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                   <div className="review-bottom">
-                    <span>You’re in control. Make it sound like you.</span>
+                    <span role="status">
+                      {brandApproved
+                        ? "Current brand details approved for this session."
+                        : "Review required before campaign generation."}
+                    </span>
                     <button
                       className="primary"
-                      disabled={!validBrand}
-                      onClick={() => setStep(1)}
+                      disabled={replacementPending || working}
+                      onClick={approveBrand}
                     >
                       Approve brand & continue
                       <ArrowRight size={16} />
@@ -755,7 +876,7 @@ export default function Home() {
               </div>
               <button
                 className="primary large"
-                disabled={working}
+                disabled={working || !brandApproved || replacementPending}
                 onClick={() => generate()}
               >
                 {busy ? (

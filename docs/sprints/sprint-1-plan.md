@@ -1,6 +1,6 @@
 # Sprint 1 — AI Quality & Brand Intelligence
 
-Status: **In progress — implementation authorized; founder acceptance pending.**
+Status: **Product review — technical checks passed; Founder acceptance pending. Remote private-preview access is blocked (issue #8).**
 
 Baseline: `feat/sprint0-reliability-quality-gates`, `357df33a60a542693e4164a6d211e9031d414520`. Sprint 0 and Sprint 0.5 are complete per founder context. The older baseline and sprint-selection text in [team guidance](../agent-team/README.md) and [roadmap](../agent-team/roadmap.md) are historical; their approval and safety controls remain applicable. See [role contracts](../agent-team/roles.md).
 
@@ -16,12 +16,12 @@ All rows are P0 for the approved bounded sprint. Live progress is tracked in [Sp
 
 | ID | User story and outcome | Implementation owner | Review owner | Initial state |
 | --- | --- | --- | --- | --- |
-| S1-01 | I can distinguish extracted evidence, missing information, and my own edits before approving Brand Brain. | Brand Brain Builder | Product + QA | In progress |
-| S1-02 | I can trust that unsupported or absent brand details remain visibly uncertain. | Brand Brain Builder | Architect + QA | In progress |
-| S1-03 | I receive three distinct concepts serving one coherent, grounded strategy. | Campaign Builder | Product + QA | In progress |
-| S1-04 | I can regenerate a requested campaign element without losing unrelated edits. | Campaign Builder | QA | In progress |
-| S1-05 | I can evaluate image identity separately from visual appeal without generating new images. | Fidelity framework owner | Product + QA | In progress |
-| S1-06 | I can inspect the sprint through issues, technical evidence, and a founder review checklist. | Orchestrator + Product | Founder | In progress |
+| S1-01 | I can distinguish extracted evidence, missing information, and my own edits before approving Brand Brain. | Brand Brain Builder | Product + QA | Product review |
+| S1-02 | I can trust that unsupported or absent brand details remain visibly uncertain. | Brand Brain Builder | Architect + QA | Product review |
+| S1-03 | I receive three distinct concepts serving one coherent, grounded strategy. | Campaign Builder | Product + QA | Product review |
+| S1-04 | I can regenerate a requested campaign element without losing unrelated edits. | Campaign Builder | QA | Product review |
+| S1-05 | I can evaluate image identity separately from visual appeal without generating new images. | Fidelity framework owner | Product + QA | Product review |
+| S1-06 | I can inspect the sprint through issues, technical evidence, and a founder review checklist. | Orchestrator + Product | Founder | Product review |
 
 ## Acceptance criteria
 
@@ -84,6 +84,6 @@ Non-goals: auth, persistence, billing, integrations, new objective/channel/style
 | Artifact | Location |
 | --- | --- |
 | Sprint issues / status view | [Sprint hub #4](https://github.com/esraamagdy/campaign-/issues/4) · [Brand Brain #5](https://github.com/esraamagdy/campaign-/issues/5) · [Campaign #6](https://github.com/esraamagdy/campaign-/issues/6) · [Fidelity #7](https://github.com/esraamagdy/campaign-/issues/7) · [QA and review #8](https://github.com/esraamagdy/campaign-/issues/8) |
-| Draft PR / technical QA evidence | Pending — Orchestrator records actual URLs and results |
-| Private fixture preview | Pending — no preview asserted by this plan |
+| Draft PR / technical QA evidence | Draft PR link is recorded in [hub #4](https://github.com/esraamagdy/campaign-/issues/4); [technical QA report](sprint-1-qa.md) |
+| Private fixture preview | [Access status and walkthrough](sprint-1-private-preview.md): local loopback verified; authenticated remote access blocked |
 | Founder product review | [Review checklist and decision log](sprint-1-product-review.md) |

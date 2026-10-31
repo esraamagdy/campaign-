@@ -1,14 +1,14 @@
 # Sprint 1 — Founder Product Review
 
-Current state: **In progress**. Implementation is underway; technical QA and founder acceptance are pending. Paid spend is **$0**. Live extraction, strategy quality, and product-image fidelity are **unverified**.
+Current state: **Product review**. Technical checks passed; Founder acceptance is pending. Remote private-preview access remains blocked in [issue #8](https://github.com/esraamagdy/campaign-/issues/8). Paid spend is **$0**. Live extraction, strategy quality, and product-image fidelity are **unverified**.
 
-Use this checklist with the [Sprint 1 plan](sprint-1-plan.md). A green test suite supports technical completion; only the founder records product acceptance. Accepting an offline framework does not verify live model quality or authorize paid calls, merge, or public deployment.
+Use this checklist with the [Sprint 1 plan](sprint-1-plan.md), [hub #4](https://github.com/esraamagdy/campaign-/issues/4), and [technical QA report](sprint-1-qa.md). A green test suite supports technical completion; only the founder records product acceptance. Accepting an offline framework does not verify live model quality or authorize paid calls, merge, or public deployment.
 
 ## Review entry conditions
 
 - [ ] Orchestrator supplies actual issue and draft PR URLs, commit SHA, technical QA results, and known gaps.
-- [ ] A private fixture/demo preview is available, or a reproducible local review path is documented. Preview URL: **pending; none asserted**.
-- [ ] Review mode is explicitly demo/fixture, `FAL_KEY` is empty, and live tests are disabled. Do not click live generation to perform this checklist.
+- [ ] A private fixture/demo preview is available, or a reproducible local review path is documented. See [private preview status and walkthrough](sprint-1-private-preview.md). No remotely accessible preview URL is asserted.
+- [ ] Review mode is explicitly demo/fixture. Demo uses an empty `FAL_KEY`; the fixture runner uses a test-only placeholder and network-denying interception. No real credentials or real provider calls are needed.
 - [ ] Only synthetic or rights-cleared test documents/images are used; no customer material is added to GitHub issues or commits.
 
 Record Pass, Fail, or Not verified for each item with case ID, build SHA, observed behavior, and safe evidence. Leave unfinished items unchecked. Exact UI wording may vary, but provenance and uncertainty must remain clear to a marketer.
@@ -53,9 +53,9 @@ Workflow: **Ready → In progress → Technical QA → Product review → Accept
 
 | Area | Technical result / evidence | Founder decision | Remaining gap / next owner |
 | --- | --- | --- | --- |
-| Brand Brain provenance and reset behavior | Pending | Pending | Builder → QA → Founder |
-| Campaign quality and regeneration | Pending | Pending | Builder → QA → Founder |
-| Offline fidelity evaluation framework | Pending | Pending | Framework owner → QA → Founder |
+| Brand Brain provenance and reset behavior | [Offline checks passed](sprint-1-qa.md) | Pending | Private preview access → Founder |
+| Campaign quality and regeneration | [Offline checks passed](sprint-1-qa.md) | Pending | Private preview access → Founder |
+| Offline fidelity evaluation framework | [Offline checks passed](sprint-1-qa.md) | Pending | Founder |
 | Live brand/strategy/fidelity quality | Not verified; no paid calls | Not requested | Separate authorized evaluation |
 
 Founder review outcome: **Pending**. Decision date: **Pending**. Reviewed commit: **Pending**. Accepted exceptions and follow-up issue URLs: **Pending**.

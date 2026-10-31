@@ -3,6 +3,7 @@ import mammoth from "mammoth";
 import { MAX_DOCUMENT } from "@/lib/schemas";
 import { brandExtractionSchema, groundBrand } from "@/lib/brand";
 import { demoBrand } from "@/lib/mock";
+import { createBrandReview } from "@/lib/brand-review";
 import { generate, aiConfig } from "@/lib/ai";
 import { brandPrompt } from "@/lib/prompts";
 import { apiError } from "@/lib/api-error";
@@ -71,8 +72,13 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     const { demo } = aiConfig();
+    const sampleBrand = demo ? demoBrand(text) : undefined;
     const result = demo
-      ? { brand: demoBrand(text), evidence: {} }
+      ? {
+          brand: sampleBrand!,
+          evidence: {},
+          review: createBrandReview(sampleBrand!, {}, true),
+        }
       : groundBrand(
           await generate(
             brandPrompt(text.slice(0, 30000)),

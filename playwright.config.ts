@@ -3,7 +3,7 @@ const live = process.env.FORMA_LIVE_TESTS === "1";
 const port = live ? 3101 : 3100;
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: live ? "live.spec.ts" : "campaign.spec.ts",
+  testMatch: live ? "live.spec.ts" : ["campaign.spec.ts", "sprint1.spec.ts"],
   fullyParallel: false,
   workers: 1,
   use: {

@@ -79,7 +79,10 @@ export async function POST(req: Request) {
       fresh.name += " — a fresh perspective";
       fresh.idea = `A new angle on ${product.name}: ${product.benefits || product.description}`;
       fresh.objective = `Build consideration of ${product.name} through distinct product-led stories.`;
-      fresh.audience = `${brand.audience} Proposed focus: first-time product explorers.`;
+      fresh.audience =
+        brand.audience === "Not specified in document"
+          ? "Proposed direction: first-time product explorers."
+          : `${brand.audience} Proposed focus: first-time product explorers.`;
       fresh.message = `Make space for ${product.name}. ${product.benefits || product.description}`;
       fresh.posts = fresh.posts.map((p, i) => ({
         ...p,

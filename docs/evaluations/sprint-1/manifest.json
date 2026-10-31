@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "provenance": "synthetic-authored",
+  "liveQualityVerified": false,
+  "cases": [
+    {
+      "id": "plain-cup",
+      "description": "Authored reference definition: single matte blue ceramic cup, round handle, no packaging or lettering. No model-generated pixels.",
+      "packagingApplicable": false,
+      "logoTextApplicable": false
+    },
+    {
+      "id": "labeled-box",
+      "description": "Authored reference definition: rectangular cream package with navy FORMA SAMPLE lettering and a red circular mark. Packaging and lettering must remain intact. No model-generated pixels.",
+      "packagingApplicable": true,
+      "logoTextApplicable": true
+    },
+    {
+      "id": "distinct-bottle",
+      "description": "Authored reference definition: amber triangular bottle with black cap, white SAMPLE label and narrow neck. Product container counts as packaging. No model-generated pixels.",
+      "packagingApplicable": true,
+      "logoTextApplicable": true
+    }
+  ]
+}
