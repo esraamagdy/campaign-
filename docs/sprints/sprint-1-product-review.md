@@ -58,7 +58,7 @@ Workflow: **Ready → In progress → Technical QA → Product review → Accept
 | Offline fidelity evaluation framework | [Offline checks passed](sprint-1-qa.md) | Pending | Founder |
 | Live brand/strategy/fidelity quality | Not verified; no paid calls | Not requested | Separate authorized evaluation |
 
-Founder review outcome: **Pending**. Decision date: **Pending**. Reviewed commit: **Pending**. Accepted exceptions and follow-up issue URLs: **Pending**.
+Founder review outcome: **Pending**. Decision date: **Pending**. Implementation commit for review: **ddd05dce81a2df647a21848f4c252662a13b42e3** ([Draft PR #9](https://github.com/esraamagdy/campaign-/pull/9)). Founder-reviewed commit: **Pending**. Accepted exceptions and follow-up issue URLs: **Pending**.
 
 ## Approval boundaries
 

@@ -12,9 +12,9 @@ The baseline already supplies evidence quotes, editable Brand Brain fields, miss
 
 ## Prioritized backlog and ownership
 
-All rows are P0 for the approved bounded sprint. Live progress is tracked in [Sprint hub #4](https://github.com/esraamagdy/campaign-/issues/4); issue status takes precedence over this initial snapshot. The Orchestrator records exact assignees, issue URLs, branch names, and PR evidence in the GitHub workflow; one writing owner per file applies.
+All rows are P0 for the approved bounded sprint. The technical implementation is in Draft PR #9 at `ddd05dce81a2df647a21848f4c252662a13b42e3`. Live progress is tracked in [Sprint hub #4](https://github.com/esraamagdy/campaign-/issues/4); issue status takes precedence over this initial snapshot. The Orchestrator records exact assignees, issue URLs, branch names, and PR evidence in the GitHub workflow; one writing owner per file applies.
 
-| ID | User story and outcome | Implementation owner | Review owner | Initial state |
+| ID | User story and outcome | Implementation owner | Review owner | State at handoff |
 | --- | --- | --- | --- | --- |
 | S1-01 | I can distinguish extracted evidence, missing information, and my own edits before approving Brand Brain. | Brand Brain Builder | Product + QA | Product review |
 | S1-02 | I can trust that unsupported or absent brand details remain visibly uncertain. | Brand Brain Builder | Architect + QA | Product review |
@@ -84,6 +84,6 @@ Non-goals: auth, persistence, billing, integrations, new objective/channel/style
 | Artifact | Location |
 | --- | --- |
 | Sprint issues / status view | [Sprint hub #4](https://github.com/esraamagdy/campaign-/issues/4) · [Brand Brain #5](https://github.com/esraamagdy/campaign-/issues/5) · [Campaign #6](https://github.com/esraamagdy/campaign-/issues/6) · [Fidelity #7](https://github.com/esraamagdy/campaign-/issues/7) · [QA and review #8](https://github.com/esraamagdy/campaign-/issues/8) |
-| Draft PR / technical QA evidence | Draft PR link is recorded in [hub #4](https://github.com/esraamagdy/campaign-/issues/4); [technical QA report](sprint-1-qa.md) |
+| Draft PR / technical QA evidence | [Draft PR #9](https://github.com/esraamagdy/campaign-/pull/9); [technical QA report](sprint-1-qa.md) |
 | Private fixture preview | [Access status and walkthrough](sprint-1-private-preview.md): local loopback verified; authenticated remote access blocked |
 | Founder product review | [Review checklist and decision log](sprint-1-product-review.md) |

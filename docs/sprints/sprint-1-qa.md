@@ -2,7 +2,7 @@
 
 Decision: **Scoped offline implementation checks pass; Founder acceptance pending.** Private remote preview delivery is blocked separately. No merge, public deployment, or paid model call occurred. Provider API cost: **$0**.
 
-Baseline: `357df33a60a542693e4164a6d211e9031d414520`. Candidate: Sprint1 branch; the Draft PR records the reviewed implementation commit. Product, Architect, Builder and QA used native Codex subagents; one writer owned each file. QA independently inspected the integrated changes and ran targeted brand, campaign and evaluator tests.
+Baseline: `357df33a60a542693e4164a6d211e9031d414520`. Candidate: implementation commit `ddd05dce81a2df647a21848f4c252662a13b42e3` in [Draft PR #9](https://github.com/esraamagdy/campaign-/pull/9). Product, Architect, Builder and QA used native Codex subagents; one writer owned each file. QA independently inspected the integrated changes and ran targeted brand, campaign and evaluator tests.
 
 ## Changes reviewed
 
@@ -25,7 +25,7 @@ Baseline: `357df33a60a542693e4164a6d211e9031d414520`. Candidate: Sprint1 branch;
 | Mocked-live browser integration | 1 passed; provider calls intercepted, not real AI verification |
 | Diff whitespace checks | Passed |
 
-Independent QA found a brand-grid layout regression after the markup change. Builder repaired the field selector and label layout; the integrated browser checks passed afterward. A fixture-preview smoke check also found a newline-marker mismatch in the test preload; it was corrected and exact corpus response tests were added before handoff.
+Independent QA found a brand-grid layout regression after the markup change. Builder repaired the field selector and label layout; the integrated browser checks passed afterward. Running fixture preview additionally passed browser smoke checks for all three exact synthetic documents. A fixture-preview smoke check also found a newline-marker mismatch in the test preload; it was corrected and exact corpus response tests were added before handoff.
 
 ## Authored calibration outcomes
 
