@@ -14,7 +14,7 @@ export async function readBody(
       if (done) break;
       size += value.length;
       if (size > limit) {
-        await reader.cancel();
+        await reader.cancel().catch(() => {});
         throw new BodyTooLargeError("Request exceeds the upload size limit.");
       }
       chunks.push(value);

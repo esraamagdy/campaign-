@@ -1,5 +1,10 @@
 import "server-only";
 import { z } from "zod";
+import { BodyTooLargeError, readBody } from "../http";
+
+// Image JSON permits one 18 MiB image encoded as base64 plus envelope overhead.
+export const MAX_TEXT_RESPONSE = 1024 * 1024;
+export const MAX_IMAGE_RESPONSE = 26 * 1024 * 1024;
 import { aiConfig } from "./config";
 import { decodeFalImage } from "./image-result";
 import { logImage, type ImageContext } from "../image-diagnostics";
@@ -39,6 +44,7 @@ async function run(
   endpoint: string,
   input: unknown,
   timeout: number,
+  maxBytes: number,
   context?: ImageContext,
 ) {
   const response = await fetch(`https://fal.run/${endpoint}`, {
@@ -62,10 +68,25 @@ async function run(
     });
   await check(response);
   try {
-    const result = await response.json();
+    if (Number(response.headers.get("content-length")) > maxBytes) {
+      await response.body?.cancel().catch(() => {});
+      throw new BodyTooLargeError();
+    }
+    const result = JSON.parse(
+      new TextDecoder().decode(await readBody(response, maxBytes)),
+    );
     if (result.error) throw new Error();
     return result;
-  } catch {
+  } catch (error) {
+    if (error instanceof BodyTooLargeError)
+      throw new ProviderError(
+        "FAL response exceeds the safe size limit. No automatic retry was made.",
+      );
+    if (
+      error instanceof Error &&
+      ["TimeoutError", "AbortError"].includes(error.name)
+    )
+      throw error;
     throw new ProviderError(
       "FAL returned an unusable response. Please try again.",
     );
@@ -90,6 +111,7 @@ export const falText: TextProvider = {
         enable_web_search: false,
       },
       60000,
+      MAX_TEXT_RESPONSE,
     );
     if (result.partial || typeof result.output !== "string")
       throw new ProviderError(
@@ -125,6 +147,7 @@ export const falImage: ImageProvider = {
         sync_mode: true,
       },
       180000,
+      MAX_IMAGE_RESPONSE,
       context,
     );
 

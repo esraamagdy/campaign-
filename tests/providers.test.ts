@@ -273,3 +273,99 @@ test("FAL image download allows only trusted storage and never forwards the key"
   await assert.rejects(falImage.edit(file, "prompt"), /untrusted/);
   assert.equal(calls, 1);
 });
+
+test("provider JSON caps cancel oversized declared or streamed replies without leaking bodies", async () => {
+  process.env.AI_MODE = "live";
+  process.env.FAL_KEY = "test-placeholder";
+  const { MAX_TEXT_RESPONSE, MAX_IMAGE_RESPONSE } =
+    await import("../lib/providers/fal");
+  const png = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: "#aabbcc" },
+  })
+    .png()
+    .toBuffer();
+  const reference = new File([new Uint8Array(png)], "product.png", {
+    type: "image/png",
+  });
+  for (const kind of ["text", "image"] as const) {
+    const maximum = kind === "text" ? MAX_TEXT_RESPONSE : MAX_IMAGE_RESPONSE;
+    for (const declared of [String(maximum + 1), undefined, "1"]) {
+      let cancelled = false;
+      let emitted = 0;
+      const chunk = new Uint8Array(256 * 1024).fill(120);
+      globalThis.fetch = async () =>
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              emitted += chunk.length;
+              controller.enqueue(chunk);
+            },
+            cancel() {
+              cancelled = true;
+              throw new Error("Private cancellation failure");
+            },
+          }),
+          { headers: declared ? { "Content-Length": declared } : {} },
+        );
+      const action =
+        kind === "text"
+          ? () => falText.generate("test", z.object({ value: z.string() }))
+          : () => falImage.edit(reference, "test");
+      await assert.rejects(
+        action(),
+        (error: unknown) =>
+          error instanceof ProviderError &&
+          error.status === 502 &&
+          /safe size limit/.test(error.message) &&
+          !error.message.includes("test-placeholder"),
+      );
+      assert.equal(cancelled, true, `${kind} response stream is cancelled`);
+      assert.ok(
+        emitted <= maximum + 2 * chunk.length,
+        "Stops reading shortly after the cap",
+      );
+    }
+  }
+});
+
+test("provider JSON accepts valid multi-chunk responses below the text cap", async () => {
+  process.env.AI_MODE = "live";
+  process.env.FAL_KEY = "test-placeholder";
+  const encoded = new TextEncoder().encode(
+    JSON.stringify({ output: '{"value":"valid"}' }),
+  );
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoded.slice(0, 10));
+          controller.enqueue(encoded.slice(10));
+          controller.close();
+        },
+      }),
+    );
+  assert.deepEqual(
+    await falText.generate("test", z.object({ value: z.string() })),
+    { value: "valid" },
+  );
+});
+
+test("provider JSON accepts exactly the text byte cap", async () => {
+  process.env.AI_MODE = "live";
+  process.env.FAL_KEY = "test-placeholder";
+  const { MAX_TEXT_RESPONSE } = await import("../lib/providers/fal");
+  const body = { output: '{"value":"valid"}', padding: "" };
+  body.padding = "x".repeat(
+    MAX_TEXT_RESPONSE - Buffer.byteLength(JSON.stringify(body)),
+  );
+  const json = JSON.stringify(body);
+  assert.equal(Buffer.byteLength(json), MAX_TEXT_RESPONSE);
+  globalThis.fetch = async () =>
+    new Response(json, {
+      headers: { "Content-Length": String(MAX_TEXT_RESPONSE) },
+    });
+  assert.deepEqual(
+    await falText.generate("test", z.object({ value: z.string() })),
+    { value: "valid" },
+  );
+});
