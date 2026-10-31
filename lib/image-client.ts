@@ -42,3 +42,25 @@ export async function readImageResponse(
     requestId: requestId || safeId(image.requestId),
   };
 }
+
+/** Decode off-screen so a corrupt successful response cannot replace a working image. */
+export async function decodeImageBeforeDisplay(
+  image: GeneratedImage,
+): Promise<void> {
+  const candidate = new window.Image();
+  candidate.src = image.dataUrl;
+  try {
+    await candidate.decode();
+    if (!candidate.naturalWidth || !candidate.naturalHeight) throw new Error();
+  } catch {
+    console.warn("[forma:image]", {
+      stage: "browser_decode",
+      code: "image_decode_failed",
+      requestId: image.requestId,
+    });
+    throw new Error(
+      "The browser could not display the returned image. No new generation was requested." +
+        (image.requestId ? ` Reference: ${image.requestId}.` : ""),
+    );
+  }
+}

@@ -47,7 +47,9 @@ export async function POST(req: Request) {
           if (field) {
             const result = await generate(
               prompt,
-              z.object({ value: z.string().min(1).max(4000) }),
+              z.object({
+                value: campaignSchema.shape.posts.element.shape[field],
+              }),
             );
             fresh.posts[index][field] = result.value;
           } else
@@ -66,13 +68,12 @@ export async function POST(req: Request) {
           fresh[key] = (
             await generate(
               prompt,
-              z.object({ value: z.string().min(1).max(4000) }),
+              z.object({ value: campaignSchema.shape[key] }),
             )
           ).value;
         }
       } else {
         fresh = await generate(prompt, campaignSchema);
-        validateStrategy(fresh);
       }
     } else if (current) {
       fresh.name += " — a fresh perspective";
@@ -94,8 +95,11 @@ export async function POST(req: Request) {
         prompt: `A new camera angle. ${v.prompt}`,
       }));
     }
+    const campaign = validateStrategy(
+      campaignSchema.parse(mergeCampaign(current, fresh, element)),
+    );
     return NextResponse.json(
-      { campaign: mergeCampaign(current, fresh, element), demo },
+      { campaign, demo },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

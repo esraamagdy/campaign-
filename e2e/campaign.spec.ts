@@ -372,3 +372,131 @@ test("all campaign cards stay visible under legacy advertising cosmetic filters"
   await expect(probe).toHaveCount(1);
   await expect(probe).toBeHidden();
 });
+
+test("full regeneration retains previous images on HTTP, contract, and browser decode failures", async ({
+  page,
+}) => {
+  await openFixtureCampaign(page);
+  const types = ["Hero", "Lifestyle", "Creative"];
+  await expect(
+    page.getByRole("button", { name: "Regenerate campaign", exact: true }),
+  ).toBeEnabled();
+  const prior = await Promise.all(
+    types.map((type) =>
+      page
+        .getByRole("link", { name: `Download ${type} image` })
+        .getAttribute("href"),
+    ),
+  );
+  let requests = 0;
+  await page.route("**/api/images", (route) => {
+    const index = requests++;
+    if (index === 0)
+      return route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Fixture provider failure" }),
+      });
+    if (index === 1)
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      });
+    return route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "x-forma-request-id": "fixture-replacement",
+      },
+      body: JSON.stringify({
+        image: {
+          dataUrl:
+            index === 2 ? "data:image/png;base64,iVBORw0KGgo=" : prior[0],
+          demo: true,
+          model: "fixture",
+        },
+      }),
+    });
+  });
+  await page
+    .getByRole("button", { name: "Regenerate campaign", exact: true })
+    .click();
+  await expect(page.locator(".image-error")).toHaveCount(3);
+  await expect(
+    page.getByText("Direction changed. Regenerate this image to match.", {
+      exact: true,
+    }),
+  ).toHaveCount(3);
+  for (let i = 0; i < types.length; i++) {
+    await expect(
+      page.getByRole("img", { name: `${types[i]} campaign visual` }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: `Download ${types[i]} image` }),
+    ).toHaveAttribute("href", prior[i]!);
+    await expect(page.locator(".image-error").nth(i)).toContainText(
+      "previous image is still available",
+    );
+  }
+  expect(requests).toBe(3);
+  await page.getByRole("button", { name: "Regenerate Hero image" }).click();
+  await expect(page.locator(".image-error")).toHaveCount(2);
+  await expect(
+    page.getByText("Direction changed. Regenerate this image to match.", {
+      exact: true,
+    }),
+  ).toHaveCount(2);
+  expect(requests).toBe(4);
+});
+
+test("full regeneration clears stale state only for successful replacements", async ({
+  page,
+}) => {
+  await openFixtureCampaign(page);
+  await expect(
+    page.getByRole("button", { name: "Regenerate campaign", exact: true }),
+  ).toBeEnabled();
+  const prior = await page
+    .getByRole("link", { name: "Download Hero image" })
+    .getAttribute("href");
+  let requests = 0;
+  await page.route("**/api/images", async (route) => {
+    if (requests++ === 0)
+      return route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: '{"error":"Fixture failure"}',
+      });
+    return route.continue();
+  });
+  await page
+    .getByRole("button", { name: "Regenerate campaign", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Regenerate campaign", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator(".image-error")).toHaveCount(1);
+  await expect(
+    page.getByText("Direction changed. Regenerate this image to match.", {
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("link", { name: "Download Hero image" }),
+  ).toHaveAttribute("href", prior!);
+  for (const type of ["Hero", "Lifestyle", "Creative"]) {
+    await expect
+      .poll(() =>
+        page
+          .getByRole("img", { name: `${type} campaign visual` })
+          .evaluate(
+            (image) =>
+              (image as HTMLImageElement).complete &&
+              (image as HTMLImageElement).naturalWidth > 0,
+          ),
+      )
+      .toBe(true);
+  }
+  expect(requests).toBe(3);
+});

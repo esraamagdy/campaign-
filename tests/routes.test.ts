@@ -152,3 +152,81 @@ test("demo routes never call a provider even with a key configured", async () =>
   assert.equal(response.status, 200);
   assert.equal((await response.json()).image.demo, true);
 });
+
+test("partial regeneration enforces field limits and merged semantics without changing unrelated edits", async () => {
+  process.env.AI_MODE = "live";
+  process.env.FAL_KEY = "forma-integration-test-placeholder";
+  process.env.AI_TEXT_REQUESTS_PER_HOUR = "100";
+  const { demoBrand, demoCampaign } = await import("../lib/mock");
+  const brand = demoBrand(doc);
+  const current = demoCampaign(brand, product);
+  current.posts[2].caption = "  A carefully preserved customer edit.  ";
+  const saved = structuredClone(current);
+  let output: unknown;
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    Response.json({ output: JSON.stringify(output) });
+  try {
+    for (const [element, value] of [
+      ["post0.headline", { value: "x".repeat(501) }],
+      ["post0.headline", { value: "   " }],
+      ["post0.headline", { value: current.posts[1].headline }],
+      ["post0.caption", { value: current.posts[1].caption }],
+      ["post0.cta", { value: current.posts[1].cta }],
+      ["visual0", { title: "Hero", concept: "Scene", prompt: "  " }],
+      ["post0", { ...current.posts[0], caption: "" }],
+      ["name", { value: "  " }],
+    ] as const) {
+      output = value;
+      const response = await campaignPOST(
+        jsonRequest("/api/campaign", { brand, product, current, element }),
+      );
+      assert.equal(response.status, 502, `Reject invalid ${element}`);
+      assert.deepEqual(current, saved);
+    }
+    output = { value: "A fresh ceramic story" };
+    const response = await campaignPOST(
+      jsonRequest("/api/campaign", {
+        brand,
+        product,
+        current,
+        element: "post0.headline",
+      }),
+    );
+    assert.equal(response.status, 200);
+    const { campaign } = await response.json();
+    const expected = structuredClone(saved);
+    expected.posts[0].headline = "A fresh ceramic story";
+    assert.deepEqual(campaign, expected);
+    const cleared = structuredClone(current);
+    cleared.posts[0].headline = "";
+    let repaired = await campaignPOST(
+      jsonRequest("/api/campaign", {
+        brand,
+        product,
+        current: cleared,
+        element: "post0.headline",
+      }),
+    );
+    assert.equal(repaired.status, 200, "A cleared target can be repaired");
+    assert.deepEqual((await repaired.json()).campaign, expected);
+    assert.equal(cleared.posts[0].headline, "", "Input draft is not mutated");
+    cleared.posts[1].caption = "";
+    repaired = await campaignPOST(
+      jsonRequest("/api/campaign", {
+        brand,
+        product,
+        current: cleared,
+        element: "post0.headline",
+      }),
+    );
+    assert.equal(
+      repaired.status,
+      502,
+      "An unrelated invalid draft is not returned as a valid campaign",
+    );
+    assert.equal(cleared.posts[1].caption, "");
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});

@@ -17,37 +17,49 @@ export const productSchema = z.object({
   benefits: z.string().max(3000),
   price: z.string().max(100),
 });
-export const campaignSchema = z.object({
-  name: z.string().max(4000),
-  idea: z.string().max(4000),
-  objective: z.string().max(4000),
-  audience: z.string().max(4000),
-  message: z.string().max(4000),
-  posts: z
-    .array(
-      z.object({
-        title: z.string().max(4000),
-        concept: z.string().max(4000),
-        headline: z.string().min(1).max(500),
-        caption: z.string().max(4000),
-        cta: z.string().max(4000),
-      }),
-    )
-    .length(3),
-  visuals: z
-    .array(
-      z.object({
-        title: z.string().max(4000),
-        concept: z.string().max(4000),
-        prompt: z.string().max(4000),
-      }),
-    )
-    .length(3),
-});
+// Edited campaign drafts may contain cleared fields so regeneration can repair them.
+// Generated responses and the final merged campaign must still be complete.
+function campaignContract(required: boolean) {
+  const text = (maximum = 4000) => {
+    const bounded = z.string().max(maximum);
+    return required
+      ? bounded.min(1).regex(/\S/, "Must contain non-whitespace text")
+      : bounded;
+  };
+  return z.object({
+    name: text(),
+    idea: text(),
+    objective: text(),
+    audience: text(),
+    message: text(),
+    posts: z
+      .array(
+        z.object({
+          title: text(),
+          concept: text(),
+          headline: text(500),
+          caption: text(),
+          cta: text(),
+        }),
+      )
+      .length(3),
+    visuals: z
+      .array(
+        z.object({
+          title: text(),
+          concept: text(),
+          prompt: text(),
+        }),
+      )
+      .length(3),
+  });
+}
+export const campaignSchema = campaignContract(true);
+const currentCampaignSchema = campaignContract(false);
 export const requestSchema = z.object({
   brand: brandSchema,
   product: productSchema,
-  current: campaignSchema.optional(),
+  current: currentCampaignSchema.optional(),
   element: z
     .enum([
       "name",

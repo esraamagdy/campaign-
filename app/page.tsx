@@ -29,7 +29,10 @@ import {
   Heart,
 } from "lucide-react";
 import type { Brand, Product, Campaign, ImageState } from "@/lib/schemas";
-import { readImageResponse } from "@/lib/image-client";
+import {
+  readImageResponse,
+  decodeImageBeforeDisplay,
+} from "@/lib/image-client";
 import { MAX_DOCUMENT, MAX_IMAGE } from "@/lib/schemas";
 const fields: { key: keyof Brand; label: string; icon: typeof Target }[] = [
   { key: "name", label: "Brand name", icon: Leaf },
@@ -139,7 +142,9 @@ export default function Home() {
       setDemo(json.demo);
       setStep(3);
       if (!element) {
-        setImageStates([{}, {}, {}]);
+        setImageStates((previous) =>
+          previous.map((state) => ({ ...state, stale: !!state.image })),
+        );
         for (let index = 0; index < 3; index++)
           await renderImage(index, json.campaign);
       } else if (element.startsWith("visual")) {
@@ -192,6 +197,7 @@ export default function Home() {
         body: form,
       });
       const image = await readImageResponse(response);
+      await decodeImageBeforeDisplay(image);
       setImageStates((previous) =>
         previous.map((state, i) =>
           i === index ? { image, loading: false, stale: false } : state,

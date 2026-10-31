@@ -137,3 +137,44 @@ Campaign content uses neutral CSS names: `campaign-post-card`, `campaign-visual-
 The old names (`ad-card`, `ad-image`, `ad-image-section`, `editable-ad-field`) were vulnerable to advertising/cosmetic filters. In a Chromium reproduction, all three cards remained in the DOM, with their headline fields and decoded images, while an injected cosmetic rule gave their parent `display:none` and zero width. The heading remained visible. Forma's own stylesheet did not hide them. This confirms the CSS-collision mechanism; it does not identify the particular extension or filter list active in a user's browser.
 
 The regression test installs those legacy hiding rules before campaign rendering and proves they remain active using a hidden legacy-class probe. It then checks that all three neutral cards, previews, headlines and captions are visible with positive dimensions, and that every image has decoded (`complete && naturalWidth > 0`). The demo and mocked-provider suites make no paid FAL calls. Renaming classes removes these collisions; it is not a guarantee against every possible custom browser filter.
+
+## Local quality gates and CI approval
+
+Run `npm ci` followed by `npm run quality` with Node.js 24 and Chromium at
+`/usr/bin/chromium` (or `CHROMIUM_PATH`). The local runner stops on the first
+failure and runs source tests, lint, type checking, a webpack production build,
+and both free browser suites. It forces demo mode and clears the inherited FAL
+key; the mocked-provider suite supplies its own dummy key and interceptor.
+No live FAL quality or pricing is verified by this command.
+
+`docs/ci/quality-gates.yml.example` is an inactive CI template outside
+`.github/workflows`. Before moving it into the workflows directory, inspect
+repository/organization usage and billing, check runner and artifact costs,
+and obtain Founder approval. No hosted CI has been enabled by this change.
+
+Development and production start scripts now default to `127.0.0.1`; browser
+and fixture test servers are private loopback processes. Explicit hosting
+configuration is required for any other bind address. No public deployment is
+included. This environment uses `npm run build -- --webpack`; Turbopack has a
+known internal-socket restriction here.
+
+Provider JSON responses are limited to 1 MiB for text and 26 MiB for images,
+including streamed responses without a trustworthy Content-Length. The image
+limit allows the existing 18 MiB binary image bound to fit as base64 plus JSON;
+image decoding and hosted-download limits still apply. Oversized replies fail
+safely without automatic retries. Full campaign regeneration retains prior
+images until each replacement succeeds; retained images are marked stale when
+new campaign text is accepted. Partial regeneration uses the same field limits
+and complete-campaign semantic validation as initial generation.
+
+### Dependency security follow-up
+
+The Sprint 0 npm audit reports one minimatch globparts-amplification DoS advisory
+(GHSA-g3hv-75wg-m249), propagated through 16 development-tool package entries;
+no high or critical advisories were reported. The installed minimatch versions
+are 3.1.5 (ESLint/plugins) and 10.2.6 (TypeScript ESLint), the latest releases in
+those respective major lines at review time. The advisory's patched release is
+11.0.1, outside both consumers' supported ranges, and its export shape differs
+from the callable v3 API. No override, major upgrade, downgrade, or forced audit
+fix was applied. Track compatible upstream releases and re-audit before release;
+passing functional gates does not resolve this development-tool advisory.
