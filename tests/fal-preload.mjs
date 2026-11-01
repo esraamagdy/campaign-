@@ -10,6 +10,97 @@ const png = fs
 const jpeg = (
   await sharp(Buffer.from(png, "base64")).jpeg().toBuffer()
 ).toString("base64");
+// Authored synthetic extraction responses for offline preview only. These are
+// not generated model evidence and intentionally recognize only exact corpus text.
+const authoredBrandCases = [
+  [
+    "rich",
+    {
+      name: ["Cinder", "Cinder makes handmade ceramic cups."],
+      personality: [
+        "warm and practical",
+        "Our personality is warm and practical.",
+      ],
+      positioning: [
+        "useful handmade ceramics for daily coffee rituals",
+        "Our positioning is useful handmade ceramics for daily coffee rituals.",
+      ],
+      audience: [
+        "home espresso enthusiasts",
+        "Our audience is home espresso enthusiasts.",
+      ],
+      tone: ["clear and calm", "Our tone is clear and calm."],
+      values: ["care and durability", "Our values are care and durability."],
+      messages: [
+        "A considered cup for your coffee pause",
+        "Our key message is: A considered cup for your coffee pause.",
+      ],
+      colors: [
+        "navy #123456 and cream #FFF8E7",
+        "Our brand colors are navy #123456 and cream #FFF8E7.",
+      ],
+      visual: [
+        "natural daylight and uncluttered backgrounds",
+        "Our visual guidelines require natural daylight and uncluttered backgrounds.",
+      ],
+    },
+  ],
+  [
+    "sparse",
+    {
+      name: ["Pebble", "Pebble makes cotton tote bags."],
+      tone: ["friendly and direct", "Our tone is friendly and direct."],
+    },
+  ],
+  [
+    "conflicting",
+    {
+      name: ["Morrow", "Morrow makes refillable soap bottles."],
+      // Contradictory tone remains missing; historical colors and malicious quoted
+      // instructions are deliberately excluded from this authored response.
+      colors: [
+        "forest green #114433",
+        "Our brand color is forest green #114433.",
+      ],
+      visual: [
+        "a plain neutral background",
+        "Our current visual guideline is a plain neutral background.",
+      ],
+    },
+  ],
+].map(([id, fields]) => ({
+  source: fs
+    .readFileSync(
+      `${process.cwd()}/tests/fixtures/quality/brand-${id}.txt`,
+      "utf8",
+    )
+    .trim(),
+  fields,
+}));
+function authoredBrandExtraction(prompt, keys) {
+  const marker = "\nDOCUMENT: ";
+  const start = String(prompt).lastIndexOf(marker);
+  if (start < 0) return undefined;
+  let source;
+  try {
+    source = JSON.parse(String(prompt).slice(start + marker.length));
+  } catch {
+    return undefined;
+  }
+  const fixture = authoredBrandCases.find(
+    (item) => typeof source === "string" && source.trim() === item.source,
+  );
+  if (!fixture) return undefined;
+  return Object.fromEntries(
+    keys.map((key) => {
+      const [value, quote] = fixture.fields[key] || [
+        "Not specified in document",
+        "",
+      ];
+      return [key, { value, quote }];
+    }),
+  );
+}
 globalThis.fetch = async (input, init) => {
   const url = String(input);
   if (url === "https://v3.fal.media/files/forma-fixture.png")
@@ -60,6 +151,8 @@ globalThis.fetch = async (input, init) => {
   ).properties;
   let result;
   if (props.personality) {
+    const authored = authoredBrandExtraction(body.prompt, Object.keys(props));
+    if (authored) return Response.json({ output: JSON.stringify(authored) });
     result = {
       name: "Cinder",
       personality: "Warm and practical",

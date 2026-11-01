@@ -25,8 +25,11 @@ test("live-mode UI and routes with mock FAL: grounded brand, paired ads, partial
   expect(result.demo).toBe(false);
   expect(brand.name).toBe("Cinder");
   await expect(
-    page.getByText("Document evidence:", { exact: false }).first(),
+    page.getByText("Source quote:", { exact: false }).first(),
   ).toBeVisible();
+  await expect(page.getByTestId("brand-field-name")).toContainText(
+    "Document extraction — review support",
+  );
   await expect(page.getByLabel("Brand colors", { exact: true })).toHaveValue(
     "Not specified in document",
   );

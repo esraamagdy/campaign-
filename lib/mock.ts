@@ -25,12 +25,15 @@ export function demoCampaign(b: Brand, p: Product): Campaign {
     name: `A little more ${p.name}`,
     idea: `Turn an everyday moment into a ritual worth looking forward to with ${p.name}.`,
     objective: `Introduce ${p.name}, build consideration, and invite shoppers to discover the product.`,
-    audience: b.audience,
+    audience:
+      b.audience === "Not specified in document"
+        ? "Proposed direction: shoppers exploring this product category."
+        : b.audience,
     message: `${p.name}: ${p.benefits || p.description}.`,
     posts: [
-      "The everyday upgrade",
-      "Details that make a difference",
-      "Make it yours",
+      "Hero: the product details",
+      "Lifestyle: an everyday use case",
+      "Creative: a fresh perspective",
     ].map((title, i) => ({
       title,
       headline: [
@@ -39,9 +42,9 @@ export function demoCampaign(b: Brand, p: Product): Campaign {
         `Make space for ${p.name}`,
       ][i],
       concept: [
-        `Introduce ${p.name} in a relatable everyday setting.`,
-        `A close-up carousel exploring ${p.features || "the product’s considered details"}.`,
-        `Show how ${p.name} fits into your audience’s routine.`,
+        `A product-led close-up of ${p.name}: ${p.features || p.description}.`,
+        `Proposed direction: show ${p.name} in an everyday use case, keeping its real details visible.`,
+        `Proposed direction: frame ${p.name} with unexpected shadows as a visual metaphor; preserve the product.`,
       ][i],
       caption: `${["Small moments. A fresh perspective.", "It’s the little details that make it personal.", "Your next favorite ritual starts here."][i]} Discover ${p.name}.`,
       cta: [
@@ -52,8 +55,8 @@ export function demoCampaign(b: Brand, p: Product): Campaign {
     })),
     visuals: ["Hero", "Lifestyle", "Creative"].map((title, i) => ({
       title,
-      concept: `${["A product-led still life", "A tactile detail composition", "A lifestyle moment"][i]} inspired by ${b.name}.`,
-      prompt: `Editorial e-commerce photograph of ${p.name}. Product description: ${p.description}. ${b.visual}. ${["Minimal hero composition on a plinth", "Macro detail composition with interesting shadows", "Authentic lifestyle setting with the product as the focal point"][i]}. No text, no logos, no invented product details.`,
+      concept: `${["A product-led close-up", "An everyday use case", "An unexpected shadow metaphor"][i]} inspired by ${b.name}.`,
+      prompt: `Proposed art direction: editorial e-commerce photograph of ${p.name}. Product description: ${p.description}. ${b.visual === "Not specified in document" ? "No supplied visual brand guidelines." : b.visual}. ${["Minimal hero close-up showing the product details", "Everyday lifestyle setting with the product as the focal point", "Unexpected cast shadows as a visual metaphor around the unchanged product"][i]}. Preserve the reference product, its existing logos and label text. No added text or invented product details.`,
     })),
   };
 }
